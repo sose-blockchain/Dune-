@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dune Query Analyzer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1E1E1E;
+            color: #FFFFFF;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            text-align: center;
+            max-width: 600px;
+            padding: 2rem;
+        }
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #00D4AA;
+            margin-bottom: 1rem;
+        }
+        .subtitle {
+            font-size: 1.2rem;
+            color: #B0B0B0;
+            margin-bottom: 2rem;
+        }
+        .status {
+            background: #2D2D2D;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        .status.success {
+            border-left: 4px solid #4ECDC4;
+        }
+        .status.info {
+            border-left: 4px solid #6C5CE7;
+        }
+        .feature-list {
+            text-align: left;
+            margin: 2rem 0;
+        }
+        .feature-list li {
+            margin: 0.5rem 0;
+            color: #B0B0B0;
+        }
+        .coming-soon {
+            background: #3A3A3A;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🔍 Dune Query Analyzer</div>
+        <div class="subtitle">Dune Analytics 쿼리 분석 및 학습 플랫폼</div>
+        
+        <div class="status success">
+            ✅ 배포 성공! 환경변수 및 데이터베이스 연결 완료
+        </div>
+        
+        <div class="status info">
+            📊 현재 설정된 서비스:
+            <ul class="feature-list">
+                <li>PostgreSQL (Supabase) - 쿼리 저장 및 관리</li>
+                <li>Redis (Upstash) - 캐시 및 세션 관리</li>
+                <li>Claude API - AI 기반 쿼리 분석</li>
+                <li>Dune API - 쿼리 데이터 가져오기</li>
+            </ul>
+        </div>
+        
+        <div class="coming-soon">
+            🚧 <strong>개발 진행 중</strong><br>
+            프론트엔드 애플리케이션이 곧 배포됩니다.<br>
+            Bloomberg Terminal 스타일의 전문적인 UI로 Dune 쿼리를 분석하고 학습할 수 있습니다.
+        </div>
+        
+        <div style="margin-top: 2rem; color: #808080; font-size: 0.9rem;">
+            배포 URL: <a href="https://dune-ai.vercel.app" style="color: #00D4AA;">dune-ai.vercel.app</a>
+        </div>
+    </div>
+</body>
+</html>

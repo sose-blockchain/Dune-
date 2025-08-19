@@ -3,11 +3,8 @@
   "name": "dune-query-analyzer",
   "builds": [
     {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
+      "src": "frontend/index.html",
+      "use": "@vercel/static"
     },
     {
       "src": "backend/src/index.ts",
@@ -24,7 +21,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "frontend/dist/$1"
+      "dest": "frontend/$1"
     }
   ],
   "env": {
