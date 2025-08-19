@@ -1,4 +1,4 @@
-import { ApiResponse, retryRequest } from './api';
+import { ApiResponse } from './api';
 import { AnalysisResult } from '../types/query';
 
 // Claude API 응답 타입
