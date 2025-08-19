@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "build": "tsc",
+    "build": "echo 'Backend build skipped for Vercel deployment'",
     "test": "jest"
   },
   "dependencies": {
