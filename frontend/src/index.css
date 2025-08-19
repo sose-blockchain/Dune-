@@ -1,0 +1,87 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    @apply bg-primary-dark text-text-primary;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  }
+}
+
+@layer components {
+  /* Bloomberg Terminal 스타일 컴포넌트 */
+  .btn-primary {
+    @apply bg-primary-accent hover:bg-primary-accent/90 text-primary-dark font-semibold py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary-light hover:bg-secondary-light/80 text-text-primary font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .card {
+    @apply bg-primary-light border border-secondary-light rounded-lg p-6 shadow-lg;
+  }
+  
+  .input-field {
+    @apply bg-primary-dark border border-secondary-light text-text-primary placeholder-text-muted rounded-lg px-4 py-2 focus:outline-none focus:border-primary-accent transition-colors duration-200;
+  }
+  
+  .code-block {
+    @apply bg-secondary-dark border border-secondary-light rounded-lg p-4 font-mono text-sm overflow-x-auto;
+  }
+  
+  .status-success {
+    @apply text-status-success;
+  }
+  
+  .status-warning {
+    @apply text-status-warning;
+  }
+  
+  .status-error {
+    @apply text-status-error;
+  }
+  
+  .status-info {
+    @apply text-status-info;
+  }
+}
+
+@layer utilities {
+  /* 커스텀 유틸리티 */
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary-accent to-secondary-accent bg-clip-text text-transparent;
+  }
+  
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #3A3A3A #1E1E1E;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: #1E1E1E;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #3A3A3A;
+    border-radius: 3px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #4ECDC4;
+  }
+}
