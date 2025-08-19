@@ -102,104 +102,23 @@ ${sqlQuery}
    * Claude API 요청 (백엔드 프록시 사용)
    */
   private async makeRequest(requestBody: ClaudeRequest): Promise<ApiResponse<ClaudeResponse>> {
-    try {
-      const response = await fetch(`${this.baseURL}/claude/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Claude API error: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Claude API 요청 실패');
-      }
-
-      return {
-        success: true,
-        data: result.data,
-      };
-    } catch (error) {
-      console.error('Claude API 요청 실패:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Claude API 요청 실패',
-      };
-    }
+    // 임시로 더미 데이터 반환
+    console.log('Claude API 호출 (임시 비활성화):', requestBody);
+    
+    return {
+      success: false,
+      error: '백엔드 서버가 준비 중입니다. 잠시 후 다시 시도해주세요.',
+    };
   }
 
   /**
    * SQL 쿼리 분석
    */
   async analyzeQuery(sqlQuery: string): Promise<ApiResponse<AnalysisResult>> {
-    const prompt = this.createAnalysisPrompt(sqlQuery);
-    
-    const requestBody: ClaudeRequest = {
-      model: this.model,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      max_tokens: 4000,
-      temperature: 0.3, // 일관된 분석을 위해 낮은 temperature 사용
+    return {
+      success: false,
+      error: '백엔드 서버가 준비 중입니다. 잠시 후 다시 시도해주세요.',
     };
-
-    const result = await retryRequest(() => this.makeRequest(requestBody));
-
-    if (!result.success || !result.data) {
-      return {
-        success: false,
-        error: result.error || '쿼리 분석에 실패했습니다.',
-      };
-    }
-
-    try {
-      // Claude 응답에서 JSON 파싱
-      const content = result.data.content[0]?.text;
-      if (!content) {
-        throw new Error('Claude 응답에서 내용을 찾을 수 없습니다.');
-      }
-
-      // JSON 부분 추출 (```json ... ``` 형식)
-      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
-      const jsonString = jsonMatch ? jsonMatch[1] : content;
-
-      const analysisData = JSON.parse(jsonString);
-
-      // AnalysisResult 형식으로 변환
-      const analysisResult: AnalysisResult = {
-        queryId: '', // 나중에 설정
-        lineAnalyses: analysisData.lineAnalyses.map((line: any) => ({
-          lineNumber: line.lineNumber,
-          originalCode: line.originalCode,
-          explanation: line.explanation,
-          difficulty: line.difficulty,
-          relatedConcepts: line.relatedConcepts || [],
-        })),
-        overallDifficulty: analysisData.overallDifficulty,
-        summary: analysisData.summary,
-        estimatedTime: analysisData.estimatedTime,
-      };
-
-      return {
-        success: true,
-        data: analysisResult,
-      };
-    } catch (error) {
-      console.error('Claude 응답 파싱 실패:', error);
-      return {
-        success: false,
-        error: '분석 결과를 파싱할 수 없습니다.',
-      };
-    }
   }
 
   /**
@@ -211,48 +130,16 @@ ${sqlQuery}
     onComplete: (result: AnalysisResult) => void,
     onError: (error: string) => void
   ): Promise<void> {
-    // 스트리밍은 나중에 구현
-    onError('스트리밍 기능은 아직 구현되지 않았습니다.');
+    onError('백엔드 서버가 준비 중입니다. 잠시 후 다시 시도해주세요.');
   }
 
   /**
    * 간단한 쿼리 설명 (빠른 분석용)
    */
   async getQuickExplanation(sqlQuery: string): Promise<ApiResponse<string>> {
-    const prompt = `다음 SQL 쿼리를 한 문장으로 간단히 설명해주세요:
-
-\`\`\`sql
-${sqlQuery}
-\`\`\`
-
-설명:`;
-
-    const requestBody: ClaudeRequest = {
-      model: this.model,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      max_tokens: 200,
-      temperature: 0.3,
-    };
-
-    const result = await this.makeRequest(requestBody);
-
-    if (!result.success || !result.data) {
-      return {
-        success: false,
-        error: result.error || '간단한 설명 생성에 실패했습니다.',
-      };
-    }
-
-    const explanation = result.data.content[0]?.text || '';
-    
     return {
-      success: true,
-      data: explanation.trim(),
+      success: false,
+      error: '백엔드 서버가 준비 중입니다. 잠시 후 다시 시도해주세요.',
     };
   }
 }
