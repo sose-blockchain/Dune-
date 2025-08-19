@@ -3,11 +3,14 @@
   "name": "dune-query-analyzer",
   "builds": [
     {
-      "src": "frontend/index.html",
-      "use": "@vercel/static"
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
     },
     {
-      "src": "backend/src/index.ts",
+      "src": "backend/src/index.js",
       "use": "@vercel/node",
       "config": {
         "maxDuration": 30
@@ -17,7 +20,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "backend/src/index.ts"
+      "dest": "backend/src/index.js"
     },
     {
       "src": "/(.*)",
