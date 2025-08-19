@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Zap, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
-import { QueryFormData, QueryFormErrors } from '../../types/query';
+import { QueryFormData } from '../../types/query';
 import { validateDuneUrl, normalizeDuneUrl } from '../../utils/validation';
 
 interface QueryInputFormProps {

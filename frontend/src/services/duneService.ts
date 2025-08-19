@@ -1,4 +1,4 @@
-import { apiClient, ApiResponse, retryRequest } from './api';
+import { ApiResponse, retryRequest } from './api';
 import { QueryData } from '../types/query';
 
 // Dune API 응답 타입

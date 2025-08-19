@@ -12,14 +12,14 @@ export const ApiTestComponent: React.FC = () => {
     claude: { loading: false },
   });
 
-  const [environmentInfo, setEnvironmentInfo] = useState<{
-    duneKey: string;
-    claudeKey: string;
-    claudeUrl: string;
+  const [environmentInfo] = useState<{
+    duneApiKey: string;
+    claudeApiKey: string;
+    claudeApiUrl: string;
   }>({
-    duneKey: process.env.REACT_APP_DUNE_API_KEY ? '설정됨' : '설정되지 않음',
-    claudeKey: process.env.REACT_APP_CLAUDE_API_KEY ? '설정됨' : '설정되지 않음',
-    claudeUrl: process.env.REACT_APP_CLAUDE_API_URL || '기본값 사용',
+    duneApiKey: process.env.REACT_APP_DUNE_API_KEY ? '설정됨' : '설정되지 않음',
+    claudeApiKey: process.env.REACT_APP_CLAUDE_API_KEY ? '설정됨' : '설정되지 않음',
+    claudeApiUrl: process.env.REACT_APP_CLAUDE_API_URL || 'https://api.anthropic.com/v1/messages',
   });
 
   const testDuneApi = async () => {
@@ -101,20 +101,20 @@ export const ApiTestComponent: React.FC = () => {
           <div className="flex items-center space-x-2">
             <Database className="h-4 w-4 text-primary-accent" />
             <span className="text-text-secondary">Dune API Key:</span>
-            <span className={`font-mono ${environmentInfo.duneKey === '설정됨' ? 'text-status-success' : 'text-status-error'}`}>
-              {environmentInfo.duneKey}
+            <span className={`font-mono ${environmentInfo.duneApiKey === '설정됨' ? 'text-status-success' : 'text-status-error'}`}>
+              {environmentInfo.duneApiKey}
             </span>
           </div>
           <div className="flex items-center space-x-2">
             <Brain className="h-4 w-4 text-secondary-accent" />
             <span className="text-text-secondary">Claude API Key:</span>
-            <span className={`font-mono ${environmentInfo.claudeKey === '설정됨' ? 'text-status-success' : 'text-status-error'}`}>
-              {environmentInfo.claudeKey}
+            <span className={`font-mono ${environmentInfo.claudeApiKey === '설정됨' ? 'text-status-success' : 'text-status-error'}`}>
+              {environmentInfo.claudeApiKey}
             </span>
           </div>
           <div className="flex items-center space-x-2">
             <span className="text-text-secondary">Claude API URL:</span>
-            <span className="font-mono text-text-primary">{environmentInfo.claudeUrl}</span>
+            <span className="font-mono text-text-primary">{environmentInfo.claudeApiUrl}</span>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Search, Database, Brain, Zap } from 'lucide-react';
+import { Search, Database, Brain } from 'lucide-react';
 import { QueryInputForm } from './components/QueryInput/QueryInputForm';
 import { ApiTestComponent } from './components/ApiTest/ApiTestComponent';
 import { QueryFormData } from './types/query';

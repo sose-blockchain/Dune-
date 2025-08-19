@@ -1,5 +1,5 @@
 import { ApiResponse, retryRequest } from './api';
-import { AnalysisResult, LineAnalysis } from '../types/query';
+import { AnalysisResult } from '../types/query';
 
 // Claude API 응답 타입
 export interface ClaudeMessage {
