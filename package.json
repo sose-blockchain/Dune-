@@ -2,59 +2,34 @@
   "name": "dune-query-analyzer",
   "version": "1.0.0",
   "description": "Dune Analytics 쿼리 분석 및 학습 플랫폼",
-  "private": true,
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
+  "main": "index.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
-    "dev:frontend": "cd frontend && npm run dev",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run dev",
-    "build": "npm run build:frontend",
-    "build:frontend": "cd frontend && npm run build",
-    "build:backend": "cd backend && npm run build",
-    "test": "npm run test:frontend && npm run test:backend",
-    "test:frontend": "cd frontend && npm run test",
-    "test:backend": "cd backend && npm run test",
-    "lint": "npm run lint:frontend && npm run lint:backend",
-    "lint:frontend": "cd frontend && npm run lint",
-    "lint:backend": "cd backend && npm run lint",
-    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
-    "setup": "npm install && npm run setup:frontend && npm run setup:backend",
-    "setup:frontend": "cd frontend && npm install",
-    "setup:backend": "cd backend && npm install",
-    "clean": "npm run clean:frontend && npm run clean:backend",
-    "clean:frontend": "cd frontend && rm -rf node_modules dist",
-    "clean:backend": "cd backend && rm -rf node_modules dist"
+    "dev:frontend": "cd frontend && npm start",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd frontend && npm run build",
+    "start": "cd backend && npm start",
+    "test": "cd backend && npm test && cd ../frontend && npm test",
+    "vercel-build": "cd frontend && npm run build"
   },
   "keywords": [
     "dune",
     "analytics",
+    "query",
+    "analyzer",
+    "ai",
+    "claude",
     "blockchain",
-    "sql",
-    "learning",
-    "education",
-    "react",
-    "typescript",
-    "nodejs"
+    "learning"
   ],
   "author": "Dune Query Analyzer Team",
   "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1"
+  },
   "devDependencies": {
-    "concurrently": "^8.2.2",
-    "prettier": "^3.1.0"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/your-username/dune-query-analyzer.git"
-  },
-  "bugs": {
-    "url": "https://github.com/your-username/dune-query-analyzer/issues"
-  },
-  "homepage": "https://github.com/your-username/dune-query-analyzer#readme"
+    "concurrently": "^8.2.2"
+  }
 }

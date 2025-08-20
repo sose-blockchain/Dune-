@@ -3,30 +3,70 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const axios = require('axios');
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// CORS 설정
+const corsOptions = {
+  origin: function (origin, callback) {
+    // 개발 환경에서는 모든 origin 허용
+    if (process.env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+    
+    // 프로덕션 환경에서는 허용된 origin만
+    const allowedOrigins = process.env.ALLOWED_ORIGINS 
+      ? process.env.ALLOWED_ORIGINS.split(',') 
+      : ['https://your-domain.vercel.app'];
+    
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS 정책에 의해 차단되었습니다.'));
+    }
+  },
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
 // 미들웨어 설정
 app.use(helmet());
 app.use(compression());
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-domain.vercel.app'] 
-    : ['http://localhost:3000'],
-  credentials: true
-}));
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // 헬스 체크 엔드포인트
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  const healthInfo = {
+    status: 'ok',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
+    environment: process.env.NODE_ENV || 'development',
+    version: '1.0.0',
+    services: {
+      dune: {
+        configured: !!process.env.DUNE_API_KEY,
+        status: process.env.DUNE_API_KEY ? 'ready' : 'missing_api_key'
+      },
+      claude: {
+        configured: !!process.env.CLAUDE_API_KEY,
+        status: process.env.CLAUDE_API_KEY ? 'ready' : 'missing_api_key'
+      }
+    },
+    cors: {
+      allowedOrigins: process.env.ALLOWED_ORIGINS 
+        ? process.env.ALLOWED_ORIGINS.split(',') 
+        : ['http://localhost:3000']
+    }
+  };
+
+  // API 키가 하나라도 없으면 경고 상태
+  const hasAllKeys = process.env.DUNE_API_KEY && process.env.CLAUDE_API_KEY;
+  const statusCode = hasAllKeys ? 200 : 503;
+
+  res.status(statusCode).json(healthInfo);
 });
 
 // Dune API 프록시
@@ -154,6 +194,7 @@ app.listen(PORT, () => {
   console.log(`🚀 백엔드 서버가 포트 ${PORT}에서 실행 중입니다.`);
   console.log(`📡 API 프록시: http://localhost:${PORT}/api`);
   console.log(`🏥 헬스 체크: http://localhost:${PORT}/api/health`);
+  console.log(`🌍 환경: ${process.env.NODE_ENV || 'development'}`);
 });
 
 module.exports = app;
