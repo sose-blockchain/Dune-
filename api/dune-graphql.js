@@ -1,5 +1,4 @@
 const axios = require('axios');
-require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
 module.exports = async (req, res) => {
   // CORS 설정
