@@ -104,7 +104,7 @@ ${sqlQuery}
    */
   private async makeRequest(requestBody: ClaudeRequest): Promise<ApiResponse<ClaudeResponse>> {
     try {
-      const response = await apiClient.post<ClaudeResponse>('/api/claude/messages', requestBody);
+      const response = await apiClient.post<ClaudeResponse>('/claude/messages', requestBody);
       return response;
     } catch (error) {
       console.error('Claude API 요청 실패:', error);

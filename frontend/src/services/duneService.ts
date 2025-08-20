@@ -68,7 +68,7 @@ export class DuneService {
    */
   private async graphqlRequest<T>(query: string, variables?: any): Promise<ApiResponse<T>> {
     try {
-      const response = await apiClient.post<GraphQLResponse<T>>('/api/dune/graphql', {
+      const response = await apiClient.post<GraphQLResponse<T>>('/dune/graphql', {
         query,
         variables
       });
