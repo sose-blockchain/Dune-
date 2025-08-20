@@ -9,6 +9,8 @@
     "dev:frontend": "cd frontend && npm start",
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "build": "cd frontend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "echo 'Backend build skipped'",
     "start": "cd backend && npm start",
     "test": "echo 'Tests passed'",
     "vercel-build": "cd frontend && npm install && npm run build",
