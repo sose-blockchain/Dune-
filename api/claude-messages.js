@@ -1,5 +1,5 @@
 const axios = require('axios');
-require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
 module.exports = async (req, res) => {
   // CORS 설정
@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
       messages,
       max_tokens,
       temperature,
-      stream: false // 스트리밍은 나중에 구현
+      stream
     }, {
       headers: {
         'Content-Type': 'application/json',
