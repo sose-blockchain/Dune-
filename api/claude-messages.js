@@ -1,6 +1,13 @@
 const axios = require('axios');
 
 module.exports = async (req, res) => {
+  // 디버깅 로그
+  console.log('=== Claude API Function 호출됨 ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  
   // CORS 설정
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -12,9 +19,11 @@ module.exports = async (req, res) => {
     return;
   }
 
-  // POST 요청만 허용
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  // 디버깅: 모든 메서드 허용 (임시)
+  console.log('요청 메서드:', req.method);
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    console.log('메서드 거부됨:', req.method);
+    return res.status(405).json({ error: 'Method not allowed', received: req.method });
   }
 
   try {
