@@ -1,5 +1,3 @@
-
-
 module.exports = async (req, res) => {
   // CORS 설정
   res.setHeader('Access-Control-Allow-Origin', '*');
