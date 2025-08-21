@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import { duneService } from '../../services/duneService';
-import { claudeService } from '../../services/claudeService';
 import { CheckCircle, XCircle, Loader2, Database, Brain } from 'lucide-react';
 
 export const ApiTestComponent: React.FC = () => {
