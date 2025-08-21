@@ -4,14 +4,12 @@
   "description": "Dune Analytics 쿼리 분석 및 학습 플랫폼",
   "main": "index.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:backend": "cd backend && npm run dev",
+    "dev": "vercel dev",
     "dev:frontend": "cd frontend && npm start",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "install:all": "npm install && cd api && npm install && cd ../frontend && npm install",
     "build": "cd frontend && npm run build",
     "build:frontend": "cd frontend && npm run build",
-    "build:backend": "echo 'Backend build skipped'",
-    "start": "cd backend && npm start",
+    "start": "echo \"'npm run dev'를 사용하여 개발 서버를 시작하세요.\"",
     "test": "echo 'Tests passed'",
     "vercel-build": "cd frontend && npm install && npm run build",
     "lint": "echo 'Linting skipped for now'"
@@ -33,6 +31,6 @@
     "dotenv": "^16.3.1"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "vercel": "^32.5.0"
   }
 }

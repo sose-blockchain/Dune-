@@ -2,5 +2,11 @@
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/build",
   "installCommand": "npm install",
-  "devCommand": "npm run dev"
+  "devCommand": "cd frontend && npm start",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    }
+  ]
 }
