@@ -30,8 +30,8 @@ jobs:
     - name: Setup frontend dependencies
       run: cd frontend && npm ci
       
-    - name: Setup backend dependencies
-      run: cd backend && npm ci
+    - name: Setup api dependencies
+      run: cd api && npm ci
       
     - name: Run linting
       run: npm run lint
@@ -42,9 +42,6 @@ jobs:
     - name: Build frontend
       run: npm run build:frontend
       
-    - name: Build backend
-      run: npm run build:backend
-
   deploy:
     needs: test
     runs-on: ubuntu-latest
@@ -66,8 +63,8 @@ jobs:
     - name: Setup frontend dependencies
       run: cd frontend && npm ci
       
-    - name: Setup backend dependencies
-      run: cd backend && npm ci
+    - name: Setup api dependencies
+      run: cd api && npm ci
       
     - name: Build project
       run: npm run build
