@@ -5,7 +5,7 @@ module.exports = async (req, res) => {
   // CORS 헤더 설정
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Dune-API-Key');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-dune-api-key');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -25,13 +25,13 @@ module.exports = async (req, res) => {
       });
     }
 
-    const response = await axios.post('https://api.dune.com/graphql', {
+    const response = await axios.post('https://api.dune.com/api/v1/query/execute', {
       query,
       variables
     }, {
       headers: {
         'Content-Type': 'application/json',
-        'X-Dune-API-Key': process.env.DUNE_API_KEY
+        'x-dune-api-key': process.env.DUNE_API_KEY
       },
       timeout: 10000
     });
