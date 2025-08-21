@@ -7,7 +7,7 @@
     "dev": "vercel dev",
     "dev:frontend": "cd frontend && npm start",
     "install:all": "npm install && cd api && npm install && cd ../frontend && npm install",
-    "build": "cd frontend && npm run build",
+    "build": "cd frontend && npm run build && cd .. && npx cpx2 \"frontend/build/**/*\" dist",
     "build:frontend": "cd frontend && npm run build",
     "start": "echo \"'npm run dev'를 사용하여 개발 서버를 시작하세요.\"",
     "test": "echo 'Tests passed'",
@@ -31,6 +31,7 @@
     "dotenv": "^16.3.1"
   },
   "devDependencies": {
+    "cpx2": "^8.0.0",
     "vercel": "^32.5.0"
   }
 }
