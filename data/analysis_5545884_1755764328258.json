@@ -1,0 +1,26 @@
+{
+  "duneQueryId": "5545884",
+  "duneUrl": "https://dune.com/queries/5545884",
+  "title": "Fees",
+  "description": "Dune Analytics SQL 쿼리",
+  "category": "dune",
+  "difficultyLevel": "intermediate",
+  "tags": [
+    "dune",
+    "sql"
+  ],
+  "rawQuery": "WITH daily_revenue AS (\n    SELECT \n        date_trunc('day', evt_block_time) as date,\n        _token as token,\n        SUM(CAST(_amt AS DOUBLE) / 1e18) as daily_amount\n    FROM infrared_berachain.infrared_evt_protocolfees\n    GROUP BY 1, 2\n)\nSELECT \n    dr.date,\n    p.symbol,\n    dr.daily_amount as amount,\n    dr.daily_amount * CAST(p.price AS DOUBLE) as amount_usd,\n    SUM(dr.daily_amount * CAST(p.price AS DOUBLE)) OVER (\n        ORDER BY dr.date \n        ROWS UNBOUNDED PRECEDING\n    ) as cumulative_amount_usd\nFROM daily_revenue dr\nINNER JOIN prices.day p \n    ON dr.token = p.contract_address \n    AND dr.date = p.timestamp \nWHERE p.contract_address IN (\n    0x6969696969696969696969696969696969696969,\n    0xac03caba51e17c86c921e1f6cbfbdc91f8bb2e6b,\n    0x9b6761bf2397bb5a6624a856cc84a3a14dcd3fe5,\n    0xfcbd14dc51f0a4d49d5e53c2e0950e0bc26d0dce\n)\nORDER BY 1 desc, 2;",
+  "analysisResult": {
+    "queryId": "5545884",
+    "commentedQuery": "WITH daily_revenue AS (\n    -- 일별 토큰별 수수료 수입을 계산하는 CTE\n    SELECT \n        date_trunc('day', evt_block_time) as date,  -- 블록 시간을 일자 단위로 절삭\n        _token as token,                            -- 수수료로 받은 토큰 주소\n        SUM(CAST(_amt AS DOUBLE) / 1e18) as daily_amount  -- Wei 단위를 기본 단위로 변환하여 합산\n    FROM infrared_berachain.infrared_evt_protocolfees\n    GROUP BY 1, 2\n)\nSELECT \n    dr.date,                    -- 날짜\n    p.symbol,                   -- 토큰 심볼\n    dr.daily_amount as amount,  -- 일별 수수료 수량\n    -- USD 가치로 환산한 일별 수수료 금액\n    dr.daily_amount * CAST(p.price AS DOUBLE) as amount_usd,\n    -- 날짜순으로 누적 USD 금액을 계산\n    SUM(dr.daily_amount * CAST(p.price AS DOUBLE)) OVER (\n        ORDER BY dr.date \n        ROWS UNBOUNDED PRECEDING\n    ) as cumulative_amount_usd\nFROM daily_revenue dr\n-- 토큰 가격 정보와 조인\nINNER JOIN prices.day p \n    ON dr.token = p.contract_address  -- 토큰 주소로 매칭\n    AND dr.date = p.timestamp        -- 동일 날짜의 가격 정보 사용\n-- 특정 토큰들만 필터링 (USDC, USDT 등으로 추정되는 주소들)\nWHERE p.contract_address IN (\n    0x6969696969696969696969696969696969696969,\n    0xac03caba51e17c86c921e1f6cbfbdc91f8bb2e6b,\n    0x9b6761bf2397bb5a6624a856cc84a3a14dcd3fe5,\n    0xfcbd14dc51f0a4d49d5e53c2e0950e0bc26d0dce\n)\nORDER BY 1 desc, 2;",
+    "overallDifficulty": "intermediate",
+    "summary": "이 SQL 쿼리는 블록체인 데이터를 분석하는 쿼리입니다.",
+    "estimatedTime": 15,
+    "keyFeatures": [
+      "SQL 분석",
+      "주석 추가",
+      "Dune Analytics"
+    ]
+  },
+  "savedAt": "2025-08-21T08:18:48.258Z"
+}

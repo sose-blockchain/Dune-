@@ -2,6 +2,7 @@ import { duneService } from './duneService';
 import { claudeService } from './claudeService';
 import { QueryData, AnalysisResult } from '../types/query';
 import { validateDuneUrl } from '../utils/validation';
+import { apiClient } from './api';
 
 // 분석 진행 상태
 export interface AnalysisProgress {
@@ -24,6 +25,61 @@ export interface FullAnalysisResult {
  * 통합 분석 서비스
  */
 export class AnalysisService {
+  /**
+   * 분석 결과를 데이터베이스에 저장
+   */
+  async saveAnalysis(
+    duneQueryId: string,
+    rawQuery: string,
+    analysisResult: AnalysisResult,
+    metadata?: {
+      title?: string;
+      description?: string;
+      category?: string;
+      difficultyLevel?: string;
+      tags?: string[];
+    }
+  ): Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+  }> {
+    try {
+      const saveData = {
+        duneQueryId,
+        duneUrl: `https://dune.com/queries/${duneQueryId}`,
+        title: metadata?.title || `Dune Query ${duneQueryId}`,
+        description: metadata?.description || "SQL 쿼리 분석",
+        category: metadata?.category || "general",
+        difficultyLevel: metadata?.difficultyLevel || "intermediate",
+        tags: metadata?.tags || [],
+        rawQuery,
+        analysisResult
+      };
+
+      const response = await apiClient.post('/save-analysis', saveData);
+      
+      if (response.success) {
+        console.log('✅ 분석 결과 저장 성공:', response.data);
+        return {
+          success: true,
+          data: response.data
+        };
+      } else {
+        console.error('❌ 분석 결과 저장 실패:', response.error);
+        return {
+          success: false,
+          error: response.error || '분석 결과 저장에 실패했습니다.'
+        };
+      }
+    } catch (error) {
+      console.error('❌ 분석 결과 저장 중 오류:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '분석 결과 저장 중 오류가 발생했습니다.'
+      };
+    }
+  }
   /**
    * Dune URL로부터 완전한 분석 수행
    */
@@ -136,8 +192,12 @@ export class AnalysisService {
         progress: 30,
       });
 
+      console.log('🔍 ANALYSIS DEBUG: duneService.getQuery 호출 시작');
       const queryResult = await duneService.getQuery(queryId);
+      console.log('🔍 ANALYSIS DEBUG: duneService.getQuery 결과:', queryResult);
+      
       if (!queryResult.success || !queryResult.data) {
+        console.log('❌ ANALYSIS DEBUG: duneService.getQuery 실패:', queryResult.error);
         onProgress({
           stage: 'error',
           message: queryResult.error || '쿼리를 가져올 수 없습니다.',
@@ -158,8 +218,13 @@ export class AnalysisService {
         progress: 70,
       });
 
+      console.log('🔍 ANALYSIS DEBUG: claudeService.analyzeQuery 호출 시작');
+      console.log('🔍 ANALYSIS DEBUG: 쿼리 데이터:', queryData);
       const analysisResult = await claudeService.analyzeQuery(queryData.rawQuery);
+      console.log('🔍 ANALYSIS DEBUG: claudeService.analyzeQuery 결과:', analysisResult);
+      
       if (!analysisResult.success || !analysisResult.data) {
+        console.log('❌ ANALYSIS DEBUG: claudeService.analyzeQuery 실패:', analysisResult.error);
         onProgress({
           stage: 'error',
           message: analysisResult.error || '쿼리 분석에 실패했습니다.',
@@ -174,10 +239,37 @@ export class AnalysisService {
       const analysis = analysisResult.data;
       analysis.queryId = queryData.id;
 
-      // 4. 완료 (100%)
+      // 4. 분석 결과 저장 (90%)
+      onProgress({
+        stage: 'analyzing',
+        message: '분석 결과를 저장하는 중...',
+        progress: 90,
+      });
+
+      // 분석 결과를 데이터베이스에 저장
+      const saveResult = await this.saveAnalysis(
+        queryData.id,
+        queryData.rawQuery,
+        analysis,
+        {
+          title: queryData.title,
+          description: queryData.description,
+          category: 'dune',
+          difficultyLevel: 'intermediate',
+          tags: ['dune', 'sql']
+        }
+      );
+
+      if (saveResult.success) {
+        console.log('✅ 분석 결과 저장 완료:', saveResult.data);
+      } else {
+        console.warn('⚠️ 분석 결과 저장 실패 (분석은 성공):', saveResult.error);
+      }
+
+      // 5. 완료 (100%)
       onProgress({
         stage: 'complete',
-        message: '분석 완료!',
+        message: '분석 및 저장 완료!',
         progress: 100,
       });
 

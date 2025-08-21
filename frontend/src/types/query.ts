@@ -13,10 +13,13 @@ export interface QueryData {
 
 export interface AnalysisResult {
   queryId: string;
-  lineAnalyses: LineAnalysis[];
+  commentedQuery: string; // 주석이 추가된 SQL 쿼리 전체
   overallDifficulty: 'beginner' | 'intermediate' | 'advanced';
   summary: string;
   estimatedTime: number; // 분 단위
+  keyFeatures: string[]; // 주요 기능들
+  // 하위 호환성을 위해 기존 필드도 유지 (옵셔널)
+  lineAnalyses?: LineAnalysis[];
 }
 
 export interface LineAnalysis {

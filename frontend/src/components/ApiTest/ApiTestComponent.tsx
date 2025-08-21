@@ -17,9 +17,9 @@ export const ApiTestComponent: React.FC = () => {
     claudeApiKey: string;
     claudeApiUrl: string;
   }>({
-    duneApiKey: process.env.REACT_APP_DUNE_API_KEY ? '설정됨' : '설정되지 않음',
-    claudeApiKey: process.env.REACT_APP_CLAUDE_API_KEY ? '설정됨' : '설정되지 않음',
-    claudeApiUrl: process.env.REACT_APP_CLAUDE_API_URL || 'https://api.anthropic.com/v1/messages',
+    duneApiKey: '백엔드에서 설정됨',
+    claudeApiKey: '백엔드에서 설정됨', 
+    claudeApiUrl: 'https://api.anthropic.com/v1/messages',
   });
 
   const testDuneApi = async () => {
@@ -29,15 +29,24 @@ export const ApiTestComponent: React.FC = () => {
     }));
 
     try {
-      // 테스트용 쿼리 ID (실제 존재하는 쿼리)
-      const result = await duneService.getQuery('5544306');
+      // 직접 API 호출 (REST 방식)
+      const response = await fetch('http://localhost:3000/api/dune-graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          queryId: '5544306',
+          parameters: {}
+        })
+      });
+      
+      const result = await response.json();
       
       setTestResults(prev => ({
         ...prev,
         dune: { 
           loading: false, 
-          success: result.success,
-          error: result.error
+          success: result.success || response.ok,
+          error: result.success ? undefined : (result.error || `HTTP ${response.status}`)
         }
       }));
     } catch (error) {
@@ -59,15 +68,25 @@ export const ApiTestComponent: React.FC = () => {
     }));
 
     try {
-      // 간단한 SQL 쿼리로 테스트
-      const result = await claudeService.getQuickExplanation('SELECT * FROM ethereum.transactions LIMIT 10');
+      // 직접 API 호출
+      const response = await fetch('http://localhost:3000/api/claude-messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 100,
+          messages: [{ role: 'user', content: 'API 테스트입니다. 간단히 응답해주세요.' }]
+        })
+      });
+      
+      const result = await response.json();
       
       setTestResults(prev => ({
         ...prev,
         claude: { 
           loading: false, 
-          success: result.success,
-          error: result.error
+          success: result.success || response.ok,
+          error: result.success ? undefined : (result.error || `HTTP ${response.status}`)
         }
       }));
     } catch (error) {

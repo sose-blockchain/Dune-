@@ -4,7 +4,8 @@
   "description": "Dune Analytics 쿼리 분석 및 학습 플랫폼",
   "main": "index.js",
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "cd frontend && npm start",
+    "dev:vercel": "vercel dev",
     "dev:frontend": "cd frontend && npm start",
     "install:all": "npm install && cd api && npm install && cd ../frontend && npm install",
     "build": "cd frontend && npm run build && cd .. && npx cpx2 \"frontend/build/**/*\" dist",
@@ -28,7 +29,9 @@
   "license": "MIT",
   "dependencies": {
     "axios": "^1.6.0",
-    "dotenv": "^16.3.1"
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^5.1.0"
   },
   "devDependencies": {
     "cpx2": "^8.0.0",

@@ -63,37 +63,62 @@ export class ClaudeService {
   }
 
   /**
-   * SQL 쿼리 분석을 위한 프롬프트 생성
+   * SQL 쿼리 주석 작성을 위한 프롬프트 생성
    */
   private createAnalysisPrompt(sqlQuery: string): string {
-    return `다음 SQL 쿼리를 라인별로 분석해주세요. 각 라인에 대해 초보자도 이해할 수 있도록 상세히 설명해주세요.
+    return `# SQL 쿼리 주석 작성 프롬프트
 
-분석 요구사항:
-1. 각 SQL 라인을 번호와 함께 분석
-2. 각 라인의 목적과 기능 설명
-3. 사용된 SQL 함수나 키워드 설명
-4. 블록체인 관련 개념이 있다면 추가 설명
-5. 전체 쿼리의 목적과 결과 설명
-6. 난이도 평가 (beginner/intermediate/advanced)
-7. 예상 학습 시간 (분 단위)
+다음 SQL 쿼리에 상세하고 이해하기 쉬운 주석을 추가해주세요. 주석은 코드의 가독성을 높이고 비즈니스 로직을 명확하게 설명해야 합니다.
 
-응답 형식:
+## 주석 작성 가이드라인
+
+### 1. 전체 쿼리 설명
+- 쿼리 최상단에 전체 목적과 용도를 설명하는 헤더 주석 추가
+- 비즈니스 컨텍스트와 해결하려는 문제 명시
+
+### 2. CTE/서브쿼리 설명
+- 각 CTE나 서브쿼리의 목적과 역할 설명
+- 데이터 변환 로직이 있다면 상세히 설명
+- GROUP BY, 집계 함수의 의도 명시
+
+### 3. 컬럼별 상세 주석
+- 각 SELECT 컬럼이 계산하는 내용과 의미
+- 복잡한 계산식이나 함수 사용 시 단계별 설명
+- 윈도우 함수, 조건부 로직 등의 동작 원리
+
+### 4. 조인 및 필터 조건
+- 테이블 간 조인 로직과 매칭 조건 설명
+- WHERE 절 필터링 조건의 비즈니스적 의미
+- 특정 값들이 사용된 이유 (예: 컨트랙트 주소, 날짜 범위 등)
+
+### 5. 데이터 변환 로직
+- 단위 변환 (예: Wei → Ether, 소수점 처리)
+- 타입 캐스팅의 목적
+- 수학적 계산의 의도
+
+### 6. 정렬 및 출력
+- ORDER BY 절의 정렬 순서와 그 이유
+- 결과 데이터의 예상 활용 방안
+
+## 주석 스타일 요구사항
+
+- \`--\` 를 사용한 한 줄 주석 형태
+- 코드 라인 바로 위 또는 옆에 배치
+- 간결하면서도 명확한 한국어 설명
+- 기술적 용어와 비즈니스 용어를 적절히 조합
+
+## 출력 형태
+
+반드시 다음 JSON 형식으로 응답해주세요:
 {
-  "lineAnalyses": [
-    {
-      "lineNumber": 1,
-      "originalCode": "SELECT * FROM ethereum.transactions",
-      "explanation": "이더리움 블록체인의 모든 트랜잭션을 선택합니다.",
-      "difficulty": "beginner",
-      "relatedConcepts": ["SELECT", "블록체인", "트랜잭션"]
-    }
-  ],
-  "overallDifficulty": "beginner",
-  "summary": "이 쿼리는 이더리움 블록체인의 트랜잭션을 분석하는 기본적인 쿼리입니다.",
-  "estimatedTime": 5
+  "commentedQuery": "주석이 추가된 SQL 쿼리 전체",
+  "overallDifficulty": "beginner|intermediate|advanced",
+  "summary": "쿼리의 전체적인 목적과 기능에 대한 요약 (2-3문장)",
+  "estimatedTime": 예상학습시간(분단위),
+  "keyFeatures": ["주요 기능1", "주요 기능2", "주요 기능3"]
 }
 
-분석할 SQL 쿼리:
+**주석을 추가할 SQL 쿼리:**
 \`\`\`sql
 ${sqlQuery}
 \`\`\``;
@@ -108,6 +133,15 @@ ${sqlQuery}
       return response;
     } catch (error) {
       console.error('Claude API 요청 실패:', error);
+      
+      // 529 오류 (요청 제한)의 경우 특별한 메시지
+      if (error instanceof Error && error.message.includes('529')) {
+        return {
+          success: false,
+          error: 'Claude API 요청 제한에 도달했습니다. 잠시 후 다시 시도해주세요.'
+        };
+      }
+      
       return {
         success: false,
         error: 'Claude API 요청에 실패했습니다.'
@@ -139,22 +173,100 @@ ${sqlQuery}
 
       if (response.success && response.data) {
         try {
-          // Claude 응답에서 텍스트 추출
-          const content = response.data.content[0];
+          console.log('🔍 CLAUDE DEBUG: 응답 데이터 구조:', JSON.stringify(response.data, null, 2));
+          
+          // Claude 응답에서 텍스트 추출 (response.data.data.content가 맞는 경로)
+          const claudeData = (response.data as any).data; // TypeScript 오류 해결을 위한 임시 캐스팅
+          if (!claudeData || !claudeData.content || !Array.isArray(claudeData.content) || claudeData.content.length === 0) {
+            console.error('❌ CLAUDE DEBUG: content 배열이 비어있거나 존재하지 않음');
+            console.error('❌ CLAUDE DEBUG: response.data:', response.data);
+            console.error('❌ CLAUDE DEBUG: claudeData:', claudeData);
+            throw new Error('Claude 응답에서 content를 찾을 수 없습니다.');
+          }
+          
+          const content = claudeData.content[0];
+          console.log('🔍 CLAUDE DEBUG: content 데이터:', content);
+          
           if (content && content.type === 'text') {
             const analysisText = content.text;
+            console.log('🔍 CLAUDE DEBUG: 원본 응답 텍스트:', analysisText.substring(0, 500));
             
-            // JSON 파싱 시도
+            // 여러 JSON 파싱 시도
+            let analysisData = null;
+            
+            // 1. 일반적인 JSON 블록 찾기
             const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-              const analysisData = JSON.parse(jsonMatch[0]);
+              try {
+                analysisData = JSON.parse(jsonMatch[0]);
+                console.log('✅ JSON 파싱 성공 (방법 1)');
+              } catch (e) {
+                console.warn('⚠️ JSON 파싱 실패 (방법 1):', e);
+              }
+            }
+            
+            // 2. 코드 블록 내 JSON 찾기
+            if (!analysisData) {
+              const codeBlockMatch = analysisText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+              if (codeBlockMatch) {
+                try {
+                  analysisData = JSON.parse(codeBlockMatch[1]);
+                  console.log('✅ JSON 파싱 성공 (방법 2: 코드 블록)');
+                } catch (e) {
+                  console.warn('⚠️ JSON 파싱 실패 (방법 2):', e);
+                }
+              }
+            }
+            
+            // 3. 마크다운 형식에서 정보 추출
+            if (!analysisData) {
+              console.log('📝 마크다운 형식으로 응답 파싱 시도');
               
+              // SQL 코드 블록 찾기 (여러 패턴 시도)
+              let sqlMatch = analysisText.match(/```sql\s*([\s\S]*?)\s*```/);
+              if (!sqlMatch) {
+                // 다른 패턴들 시도
+                sqlMatch = analysisText.match(/```\s*(?:SQL|sql)?\s*([\s\S]*?)\s*```/);
+              }
+              if (!sqlMatch) {
+                // WITH로 시작하는 SQL 블록 찾기
+                sqlMatch = analysisText.match(/(WITH[\s\S]*?ORDER BY[^;]*;?)/);
+              }
+              
+              let commentedQuery = sqlMatch ? sqlMatch[1].trim() : analysisText;
+              
+              // SQL이 없으면 전체 응답을 주석이 추가된 쿼리로 사용
+              if (!commentedQuery.includes('WITH') && !commentedQuery.includes('SELECT')) {
+                commentedQuery = `-- Claude AI 분석 결과\n-- ${analysisText.substring(0, 100)}...\n\n${sqlQuery}`;
+              }
+              
+              console.log('🔍 추출된 commentedQuery 길이:', commentedQuery.length);
+              console.log('🔍 추출된 commentedQuery 시작 부분:', commentedQuery.substring(0, 200));
+              
+              // 요약 찾기
+              const summaryMatch = analysisText.match(/(?:요약|설명|목적)[:\s]*([^.\n]*[.])/i);
+              const summary = summaryMatch ? summaryMatch[1].trim() : '이 SQL 쿼리는 블록체인 데이터를 분석하는 쿼리입니다.';
+              
+              analysisData = {
+                commentedQuery,
+                overallDifficulty: 'intermediate',
+                summary,
+                estimatedTime: 15,
+                keyFeatures: ['SQL 분석', '주석 추가', 'Dune Analytics']
+              };
+              
+              console.log('✅ 마크다운 파싱으로 데이터 추출 완료');
+              console.log('✅ 최종 commentedQuery:', !!analysisData.commentedQuery);
+            }
+            
+            if (analysisData) {
               const analysisResult: AnalysisResult = {
                 queryId: '', // 나중에 설정됨
-                lineAnalyses: analysisData.lineAnalyses || [],
+                commentedQuery: analysisData.commentedQuery || sqlQuery,
                 overallDifficulty: analysisData.overallDifficulty || 'intermediate',
-                summary: analysisData.summary || '분석 완료',
-                estimatedTime: analysisData.estimatedTime || 10
+                summary: analysisData.summary || '주석이 추가된 SQL 쿼리 분석이 완료되었습니다.',
+                estimatedTime: analysisData.estimatedTime || 10,
+                keyFeatures: analysisData.keyFeatures || ['SQL 분석', '주석 추가']
               };
 
               return {
@@ -167,18 +279,11 @@ ${sqlQuery}
           // JSON 파싱 실패 시 기본 분석 결과 반환
           const fallbackResult: AnalysisResult = {
             queryId: '',
-            lineAnalyses: [
-              {
-                lineNumber: 1,
-                originalCode: sqlQuery,
-                explanation: 'SQL 쿼리 분석이 완료되었습니다.',
-                difficulty: 'intermediate',
-                relatedConcepts: ['SQL', '데이터 분석']
-              }
-            ],
+            commentedQuery: `-- SQL 쿼리 분석 완료\n-- 원본 쿼리에 주석을 추가하지 못했습니다.\n\n${sqlQuery}`,
             overallDifficulty: 'intermediate',
-            summary: 'SQL 쿼리 분석이 완료되었습니다.',
-            estimatedTime: 10
+            summary: 'SQL 쿼리에 주석을 추가하는 중 오류가 발생했지만, 기본 분석은 완료되었습니다.',
+            estimatedTime: 10,
+            keyFeatures: ['SQL 분석', '기본 주석']
           };
 
           return {

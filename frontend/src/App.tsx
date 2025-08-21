@@ -244,43 +244,78 @@ function App() {
                     </div>
                   </div>
 
-                  {/* 라인별 분석 */}
+                  {/* 주요 기능 */}
+                  {analysisResult.analysis.keyFeatures && (
+                    <div>
+                      <h4 className="text-lg font-medium text-text-primary mb-2">
+                        주요 기능
+                      </h4>
+                      <div className="bg-secondary-dark p-4 rounded-lg">
+                        <div className="flex flex-wrap gap-2">
+                          {analysisResult.analysis.keyFeatures.map((feature: string, idx: number) => (
+                            <span 
+                              key={idx}
+                              className="px-3 py-1 bg-primary-accent/20 text-primary-accent text-sm rounded-full"
+                            >
+                              {feature}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 주석이 추가된 SQL 쿼리 */}
                   <div>
                     <h4 className="text-lg font-medium text-text-primary mb-2">
-                      라인별 분석
+                      주석이 추가된 SQL 쿼리
                     </h4>
-                    <div className="space-y-3">
-                      {analysisResult.analysis.lineAnalyses.map((line: any, index: number) => (
-                        <div key={index} className="bg-secondary-dark p-4 rounded-lg">
-                          <div className="flex items-start space-x-3">
-                            <span className="text-sm text-text-muted font-mono min-w-[3rem]">
-                              {line.lineNumber}
-                            </span>
-                            <div className="flex-1">
-                              <code className="text-text-primary font-mono text-sm block mb-2">
-                                {line.originalCode}
-                              </code>
-                              <p className="text-text-secondary text-sm">
-                                {line.explanation}
-                              </p>
-                              {line.relatedConcepts.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                  {line.relatedConcepts.map((concept: string, idx: number) => (
-                                    <span 
-                                      key={idx}
-                                      className="px-2 py-1 bg-primary-accent/20 text-primary-accent text-xs rounded"
-                                    >
-                                      {concept}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="bg-secondary-dark p-4 rounded-lg">
+                      <pre className="text-text-primary font-mono text-sm whitespace-pre-wrap overflow-x-auto">
+                        {analysisResult.analysis.commentedQuery || analysisResult.query.rawQuery}
+                      </pre>
                     </div>
                   </div>
+
+                  {/* 라인별 분석 (하위 호환성) */}
+                  {analysisResult.analysis.lineAnalyses && analysisResult.analysis.lineAnalyses.length > 0 && (
+                    <div>
+                      <h4 className="text-lg font-medium text-text-primary mb-2">
+                        라인별 분석
+                      </h4>
+                      <div className="space-y-3">
+                        {analysisResult.analysis.lineAnalyses.map((line: any, index: number) => (
+                          <div key={index} className="bg-secondary-dark p-4 rounded-lg">
+                            <div className="flex items-start space-x-3">
+                              <span className="text-sm text-text-muted font-mono min-w-[3rem]">
+                                {line.lineNumber}
+                              </span>
+                              <div className="flex-1">
+                                <code className="text-text-primary font-mono text-sm block mb-2">
+                                  {line.originalCode}
+                                </code>
+                                <p className="text-text-secondary text-sm">
+                                  {line.explanation}
+                                </p>
+                                {line.relatedConcepts.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {line.relatedConcepts.map((concept: string, idx: number) => (
+                                      <span 
+                                        key={idx}
+                                        className="px-2 py-1 bg-primary-accent/20 text-primary-accent text-xs rounded"
+                                      >
+                                        {concept}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

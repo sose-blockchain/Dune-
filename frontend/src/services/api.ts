@@ -1,8 +1,9 @@
 // API 기본 설정 및 공통 함수들
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api'  // Vercel에서는 같은 도메인의 /api 경로 사용
-  : (process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api');
+// 로컬 개발 환경에서는 항상 localhost:3000 사용
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3000/api'  // 로컬 개발
+  : '/api';  // 프로덕션 (Vercel)
 
 // API 응답 타입
 export interface ApiResponse<T = any> {
