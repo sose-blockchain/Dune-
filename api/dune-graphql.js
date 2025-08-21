@@ -16,7 +16,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { queryId, parameters = {} } = req.body;
+    const { query, variables, queryId, parameters = {} } = req.body;
     
     if (!process.env.DUNE_API_KEY) {
       return res.status(500).json({
@@ -25,6 +25,29 @@ module.exports = async (req, res) => {
       });
     }
 
+    // GraphQL 요청인지 REST API 요청인지 구분
+    if (query) {
+      // GraphQL 요청 처리 (메타데이터 조회)
+      console.log('GraphQL 요청 처리');
+      const response = await axios.post('https://api.dune.com/graphql', {
+        query,
+        variables
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-dune-api-key': process.env.DUNE_API_KEY
+        },
+        timeout: 10000
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: response.data.data,
+        errors: response.data.errors
+      });
+    }
+
+    // REST API 요청 처리 (쿼리 실행)
     if (!queryId) {
       return res.status(400).json({
         success: false,

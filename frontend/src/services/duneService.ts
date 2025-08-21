@@ -64,7 +64,46 @@ export class DuneService {
   }
 
   /**
-   * REST API 요청 (백엔드 프록시 사용)
+   * GraphQL 요청 (백엔드 프록시 사용) - 메타데이터 조회용
+   */
+  private async graphqlRequest<T>(query: string, variables?: any): Promise<ApiResponse<T>> {
+    try {
+      const response = await apiClient.post<GraphQLResponse<T>>('/dune-graphql', {
+        query,
+        variables
+      });
+
+      if (response.success && response.data) {
+        // GraphQL 에러 체크
+        if (response.data.errors && response.data.errors.length > 0) {
+          return {
+            success: false,
+            error: response.data.errors[0].message || 'GraphQL 오류가 발생했습니다.'
+          };
+        }
+        
+        // 성공 시 data만 반환
+        return {
+          success: true,
+          data: response.data.data
+        };
+      }
+
+      return {
+        success: false,
+        error: response.error || 'GraphQL 요청에 실패했습니다.'
+      };
+    } catch (error) {
+      console.error('Dune GraphQL 요청 실패:', error);
+      return {
+        success: false,
+        error: 'Dune API 요청에 실패했습니다.'
+      };
+    }
+  }
+
+  /**
+   * REST API 요청 (백엔드 프록시 사용) - 쿼리 실행용
    */
   private async executeQuery(queryId: string, parameters: any = {}): Promise<ApiResponse<any>> {
     try {
