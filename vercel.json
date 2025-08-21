@@ -2,6 +2,23 @@
   "installCommand": "npm run install:all",
   "buildCommand": "npm run build",
   "outputDirectory": "frontend/build",
+  "routes": [
+    {
+      "src": "/api/claude/messages",
+      "methods": ["POST"],
+      "dest": "/api/claude-messages"
+    },
+    {
+      "src": "/api/dune/graphql",
+      "methods": ["POST"],
+      "dest": "/api/dune-graphql"
+    },
+    {
+      "src": "/api/health",
+      "methods": ["GET"],
+      "dest": "/api/health"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
