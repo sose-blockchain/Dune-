@@ -36,8 +36,8 @@ module.exports = async (req, res) => {
       });
     }
 
-    // TODO: 실제 데이터베이스 연결이 있을 때 사용할 코드
-    // 현재는 로컬 JSON 파일로 저장하는 방식으로 구현
+    // Vercel 서버리스 환경: 분석 데이터 로그 및 응답만 처리
+    // TODO: 향후 데이터베이스 연결 시 실제 저장 로직 구현
     
     const analysisData = {
       duneQueryId,
@@ -52,32 +52,23 @@ module.exports = async (req, res) => {
       savedAt: new Date().toISOString()
     };
 
-    // 로컬 파일 시스템에 저장 (임시 구현)
-    const fs = require('fs');
-    const path = require('path');
+    // Vercel 환경에서는 로그만 출력 (파일 시스템 저장 불가)
+    console.log(`✅ 분석 완료 - Query ID: ${duneQueryId}`);
+    console.log(`📊 제목: ${analysisData.title}`);
+    console.log(`🎯 난이도: ${analysisData.difficultyLevel}`);
+    console.log(`⏰ 분석 시간: ${analysisData.savedAt}`);
     
-    const dataDir = path.join(process.cwd(), 'data');
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-    
-    const fileName = `analysis_${duneQueryId}_${Date.now()}.json`;
-    const filePath = path.join(dataDir, fileName);
-    
-    fs.writeFileSync(filePath, JSON.stringify(analysisData, null, 2));
-    
-    console.log(`✅ 분석 결과 저장 완료: ${fileName}`);
-    
+    // 성공 응답 (실제 저장은 향후 데이터베이스 연동 시 구현)
     res.status(200).json({
       success: true,
       data: {
-        id: fileName,
+        id: `analysis_${duneQueryId}_${Date.now()}`,
         duneQueryId,
         title: analysisData.title,
         savedAt: analysisData.savedAt,
-        filePath: fileName
+        storage: 'logged_to_vercel_console'
       },
-      message: '분석 결과가 성공적으로 저장되었습니다.'
+      message: '분석이 완료되었습니다. (Vercel 환경: 로그로 기록됨)'
     });
 
   } catch (error) {

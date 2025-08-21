@@ -30,7 +30,7 @@ export const ApiTestComponent: React.FC = () => {
 
     try {
       // 직접 API 호출 (REST 방식)
-      const response = await fetch('http://localhost:3000/api/dune-graphql', {
+      const response = await fetch('/api/dune-graphql', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -69,7 +69,7 @@ export const ApiTestComponent: React.FC = () => {
 
     try {
       // 직접 API 호출
-      const response = await fetch('http://localhost:3000/api/claude-messages', {
+      const response = await fetch('/api/claude-messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
