@@ -520,6 +520,20 @@ export class AnalysisService {
 
         if (chainedAnalysis.success && chainedAnalysis.data) {
           chainedResult = chainedAnalysis.data;
+          
+          // 연결된 쿼리도 데이터베이스에 저장
+          console.log(`💾 연결된 쿼리(${chainedQueryId}) 저장 시작...`);
+          
+          const chainedSaveResult = await this.saveAnalysisResult(
+            chainedAnalysis.data.query,
+            chainedAnalysis.data.analysis
+          );
+          
+          if (chainedSaveResult.success) {
+            console.log(`✅ 연결된 쿼리(${chainedQueryId}) 저장 성공`);
+          } else {
+            console.error(`❌ 연결된 쿼리(${chainedQueryId}) 저장 실패:`, chainedSaveResult.error);
+          }
         }
 
         onProgress?.({
