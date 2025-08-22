@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Search, Database, Brain } from 'lucide-react';
+import { Search, Database, Brain, Wand2 } from 'lucide-react';
 import { QueryInputForm } from './components/QueryInput/QueryInputForm';
 import { ApiTestComponent } from './components/ApiTest/ApiTestComponent';
+import { SQLGeneratorComponent } from './components/SQLGenerator/SQLGeneratorComponent';
 import { QueryFormData } from './types/query';
 import { analysisService, AnalysisProgress } from './services/analysisService';
 import { validateDuneUrl } from './utils/validation';
@@ -18,7 +19,10 @@ const queryClient = new QueryClient({
   },
 });
 
+type ActiveTab = 'analyze' | 'generate' | 'test';
+
 function App() {
+  const [activeTab, setActiveTab] = useState<ActiveTab>('analyze');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState<AnalysisProgress | null>(null);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
@@ -124,12 +128,6 @@ function App() {
                 </h1>
               </div>
               <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => setShowApiTest(!showApiTest)}
-                  className="text-text-secondary hover:text-text-primary transition-colors text-sm"
-                >
-                  {showApiTest ? 'API 테스트 숨기기' : 'API 테스트'}
-                </button>
                 <span className="text-text-secondary text-sm">
                   Bloomberg Terminal Style
                 </span>
@@ -140,26 +138,62 @@ function App() {
 
         {/* 메인 컨텐츠 */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* API 테스트 컴포넌트 */}
-          {showApiTest && (
-            <div className="mb-8">
-              <ApiTestComponent />
-            </div>
-          )}
 
           {/* 히어로 섹션 */}
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-text-primary mb-4">
-              Dune Analytics 쿼리 분석 및 학습 플랫폼
+              AI 기반 Dune Analytics 플랫폼
             </h2>
             <p className="text-xl text-text-secondary max-w-3xl mx-auto">
-              복잡한 Dune 쿼리를 AI가 라인별로 설명해드립니다. 
+              복잡한 Dune 쿼리를 AI가 분석하고, 자연어로 SQL을 생성합니다. 
               블록체인 데이터 분석을 쉽고 재미있게 학습하세요.
             </p>
           </div>
 
-          {/* 기능 카드들 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          {/* 탭 네비게이션 */}
+          <div className="flex justify-center mb-8">
+            <div className="flex space-x-4 bg-secondary-dark rounded-lg p-1">
+              <button
+                onClick={() => setActiveTab('analyze')}
+                className={`px-6 py-3 rounded-md font-medium transition-colors flex items-center space-x-2 ${
+                  activeTab === 'analyze'
+                    ? 'bg-primary-accent text-white'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <Search className="h-4 w-4" />
+                <span>쿼리 분석</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('generate')}
+                className={`px-6 py-3 rounded-md font-medium transition-colors flex items-center space-x-2 ${
+                  activeTab === 'generate'
+                    ? 'bg-primary-accent text-white'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <Wand2 className="h-4 w-4" />
+                <span>SQL 생성</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('test')}
+                className={`px-6 py-3 rounded-md font-medium transition-colors flex items-center space-x-2 ${
+                  activeTab === 'test'
+                    ? 'bg-primary-accent text-white'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <Database className="h-4 w-4" />
+                <span>API 테스트</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 탭 컨텐츠 */}
+          {activeTab === 'analyze' && (
+            <>
+              {/* 기능 카드들 */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
             <div className="card">
               <div className="flex items-center mb-4">
                 <Search className="h-6 w-6 text-primary-accent mr-3" />
@@ -374,9 +408,26 @@ function App() {
               </div>
             </div>
           )}
+            </>
+          )}
+
+          {/* SQL 생성기 탭 */}
+          {activeTab === 'generate' && (
+            <SQLGeneratorComponent 
+              onSQLGenerated={(sql) => {
+                console.log('생성된 SQL:', sql);
+                // 필요시 추가 처리
+              }}
+            />
+          )}
+
+          {/* API 테스트 탭 */}
+          {activeTab === 'test' && (
+            <ApiTestComponent />
+          )}
 
           {/* 상태 표시 */}
-          {!isAnalyzing && !analysisResult && !error && (
+          {activeTab === 'analyze' && !isAnalyzing && !analysisResult && !error && (
             <div className="mt-8 text-center">
               <div className="inline-flex items-center px-4 py-2 rounded-full bg-status-success/10 text-status-success">
                 <div className="w-2 h-2 bg-status-success rounded-full mr-2 animate-pulse"></div>
