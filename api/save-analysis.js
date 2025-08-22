@@ -24,8 +24,8 @@ async function shouldUpdateExistingData(existingData, newData) {
     }
 
     // 3. 블록체인/프로젝트 정보가 새로 추가된 경우
-    const existingHasProject = !!(existingData.blockchain_type || existingData.project_name);
-    const newHasProject = !!(newData.blockchain_type || newData.project_name);
+    const existingHasProject = !!(existingData?.blockchain_type || existingData?.project_name);
+    const newHasProject = !!(newData?.blockchain_type || newData?.project_name);
     
     if (!existingHasProject && newHasProject) {
       return {
@@ -35,7 +35,8 @@ async function shouldUpdateExistingData(existingData, newData) {
     }
 
     // 4. 30일 이상 오래된 분석인 경우 (재분석 권장)
-    const daysSinceLastUpdate = (new Date() - new Date(existingData.updated_at)) / (1000 * 60 * 60 * 24);
+    const lastUpdateDate = existingData?.updated_at || existingData?.created_at;
+    const daysSinceLastUpdate = lastUpdateDate ? (new Date() - new Date(lastUpdateDate)) / (1000 * 60 * 60 * 24) : 999;
     if (daysSinceLastUpdate > 30) {
       return {
         update: true,
@@ -103,6 +104,12 @@ module.exports = async (req, res) => {
   }
 
   try {
+    console.log('📥 save-analysis 요청 받음:', {
+      method: req.method,
+      body: req.body ? Object.keys(req.body) : 'No body',
+      timestamp: new Date().toISOString()
+    });
+
     const { 
       duneQueryId, 
       duneUrl, 
@@ -124,6 +131,7 @@ module.exports = async (req, res) => {
     }
 
     // Supabase 클라이언트 동적 생성
+    console.log('🔄 Supabase 클라이언트 생성 시도...');
     const supabase = createSupabaseClient();
     
     if (!supabase) {
@@ -163,7 +171,7 @@ module.exports = async (req, res) => {
     // 1단계: 기존 데이터 확인 및 중복 체크
     const { data: existingData, error: checkError } = await supabase
       .from('analyzed_queries')
-      .select('id, raw_query, analysis_metadata, created_at, updated_at')
+      .select('id, dune_query_id, title, raw_query, blockchain_type, project_name, project_category, analysis_metadata, created_at, updated_at')
       .eq('dune_query_id', duneQueryId)
       .single();
 

@@ -4,6 +4,19 @@ import { QueryData, AnalysisResult } from '../types/query';
 import { validateDuneUrl } from '../utils/validation';
 import { apiClient } from './api';
 
+interface SaveResponse {
+  success: boolean;
+  data?: {
+    id: string;
+    duneQueryId: string;
+    title: string;
+    action: 'created' | 'updated' | 'skipped';
+    [key: string]: any;
+  };
+  error?: string;
+  message?: string;
+}
+
 // 분석 진행 상태
 export interface AnalysisProgress {
   stage: 'fetching' | 'analyzing' | 'complete' | 'error';
@@ -72,21 +85,21 @@ export class AnalysisService {
         analysisResult
       };
 
-      const response = await apiClient.post('/save-analysis', saveData);
+      const response = await apiClient.post('/save-analysis', saveData) as SaveResponse;
       
       if (response.success) {
-        const action = response.data?.action || 'created';
-        const actionMessages = {
+        const action = (response.data?.action as string) || 'created';
+        const actionMessages: Record<string, string> = {
           created: '✅ 새로운 분석 결과 저장 완료',
           updated: '🔄 기존 분석 결과 업데이트 완료', 
           skipped: '⏭️ 중복 방지: 기존 분석 결과 유지'
         };
         
-        console.log(`${actionMessages[action]}:`, response.data);
+        console.log(`${actionMessages[action] || actionMessages.created}:`, response.data);
         return {
           success: true,
           data: {
-            ...response.data,
+            ...(response.data || {}),
             isDuplicate: action === 'skipped',
             isUpdate: action === 'updated'
           }
