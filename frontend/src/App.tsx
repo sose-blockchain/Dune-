@@ -41,7 +41,8 @@ function App() {
         url: data.duneUrl, 
         isChainQuery, 
         primaryId: validation.queryId, 
-        chainedId: validation.chainedQueryId 
+        chainedId: validation.chainedQueryId,
+        isValid: validation.isValid
       });
 
       if (isChainQuery) {
