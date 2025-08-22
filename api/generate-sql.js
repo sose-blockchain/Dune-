@@ -52,92 +52,92 @@ async function callClaudeAPI(prompt) {
   }
 }
 
-// 과거 오류 패턴에서 학습
-async function getErrorLearnings(supabase, userQuery) {
-  try {
-    console.log('🧠 과거 오류 패턴에서 학습 중...');
-    
-    // 사용자 쿼리와 관련된 성공적인 수정 사례 검색
-    const { data: successfulFixes } = await supabase
-      .from('successful_fixes')
-      .select('*')
-      .limit(5);
-    
-    if (successfulFixes && successfulFixes.length > 0) {
-      console.log(`📚 ${successfulFixes.length}개 성공적인 수정 사례 발견`);
-      return successfulFixes;
-    }
-    
-    return [];
-  } catch (error) {
-    console.error('❌ 오류 학습 데이터 조회 실패:', error);
-    return [];
-  }
-}
-
-// 일반적인 오류 패턴 조회
-async function getCommonErrorPatterns(supabase) {
-  try {
-    const { data: patterns } = await supabase
-      .from('common_error_patterns')
-      .select('*')
-      .limit(10);
-    
-    return patterns || [];
-  } catch (error) {
-    console.error('❌ 일반적인 오류 패턴 조회 실패:', error);
-    return [];
-  }
-}
-
 // 관련 쿼리 검색
 async function findRelatedQueries(supabase, userQuery) {
   try {
-    // 키워드 기반 검색 (간단한 구현)
-    const keywords = userQuery.toLowerCase().split(' ').filter(word => word.length > 2);
-    
-    let query = supabase
+    const { data, error } = await supabase
       .from('analyzed_queries')
-      .select('dune_query_id, title, summary, key_features, raw_query, blockchain_type, project_name')
-      .limit(10);
-
-    // 제목이나 요약에서 키워드 검색
-    if (keywords.length > 0) {
-      const searchPattern = keywords.join('|');
-      query = query.or(`title.ilike.%${keywords[0]}%,summary.ilike.%${keywords[0]}%`);
-    }
-
-    const { data, error } = await query;
+      .select('*')
+      .limit(5);
 
     if (error) {
-      console.error('❌ 관련 쿼리 검색 실패:', error);
+      console.error('DB 쿼리 오류:', error);
       return [];
     }
 
-    // 관련도 점수 계산 (간단한 키워드 매칭)
-    return data.map(query => ({
-      id: query.dune_query_id,
-      title: query.title,
-      summary: query.summary,
-      keyFeatures: query.key_features || [],
-      rawQuery: query.raw_query,
-      relevanceScore: calculateRelevanceScore(userQuery, query)
-    })).sort((a, b) => b.relevanceScore - a.relevanceScore);
+    if (!data || data.length === 0) {
+      return [];
+    }
 
+    // 간단한 키워드 매칭으로 관련성 점수 계산
+    const scoredQueries = data.map(query => ({
+      ...query,
+      relevanceScore: calculateRelevanceScore(userQuery, query.summary + ' ' + query.title)
+    }));
+
+    // 관련성 점수로 정렬하고 상위 3개만 반환
+    return scoredQueries
+      .filter(q => q.relevanceScore > 0)
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, 3);
   } catch (error) {
-    console.error('❌ 관련 쿼리 검색 오류:', error);
+    console.error('관련 쿼리 검색 오류:', error);
     return [];
   }
 }
 
-// 관련도 점수 계산
-function calculateRelevanceScore(userQuery, dbQuery) {
-  const userWords = userQuery.toLowerCase().split(' ');
-  const queryText = `${dbQuery.title} ${dbQuery.summary} ${dbQuery.key_features?.join(' ')}`.toLowerCase();
+// 오류 학습 데이터 가져오기
+async function getErrorLearnings(supabase, userQuery) {
+  try {
+    const { data, error } = await supabase
+      .from('sql_errors')
+      .select('original_sql, error_message, fixed_sql, fix_explanation')
+      .not('fixed_sql', 'is', null)
+      .gte('fix_success_rate', 0.7)
+      .limit(3);
+
+    if (error) {
+      console.error('오류 학습 데이터 조회 실패:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('오류 학습 데이터 가져오기 실패:', error);
+    return [];
+  }
+}
+
+// 공통 오류 패턴 가져오기
+async function getCommonErrorPatterns(supabase) {
+  try {
+    const { data, error } = await supabase
+      .from('common_error_patterns')
+      .select('*')
+      .limit(5);
+
+    if (error) {
+      console.error('공통 오류 패턴 조회 실패:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('공통 오류 패턴 가져오기 실패:', error);
+    return [];
+  }
+}
+
+// 간단한 관련성 점수 계산
+function calculateRelevanceScore(userQuery, queryText) {
+  if (!userQuery || !queryText) return 0;
+
+  const userWords = userQuery.toLowerCase().split(/\s+/);
+  const queryWords = queryText.toLowerCase();
   
   let score = 0;
   userWords.forEach(word => {
-    if (word.length > 2 && queryText.includes(word)) {
+    if (word.length > 2 && queryWords.includes(word)) {
       score += 1;
     }
   });
@@ -211,7 +211,7 @@ ${commonPatternsText}
 중요: 
 1. 반드시 유효한 JSON만 반환하세요
 2. generatedSQL에는 실제 실행 가능한 Dune Analytics SQL을 넣으세요
-3. 마크다운 코드 블록(```)은 사용하지 마세요`;
+3. 마크다운 코드 블록(\`\`\`)은 사용하지 마세요`;
 }
 
 module.exports = async (req, res) => {
@@ -230,6 +230,21 @@ module.exports = async (req, res) => {
       error: 'POST 메서드만 지원됩니다.'
     });
   }
+
+  // 환경 변수 확인
+  if (!process.env.CLAUDE_API_KEY) {
+    console.error('❌ CLAUDE_API_KEY 환경 변수가 설정되지 않음');
+    return res.status(500).json({
+      success: false,
+      error: 'Claude API 키가 설정되지 않았습니다.'
+    });
+  }
+
+  console.log('🔑 환경 변수 확인:', {
+    hasClaudeKey: !!process.env.CLAUDE_API_KEY,
+    hasSupabaseUrl: !!process.env.SUPABASE_URL,
+    hasSupabaseKey: !!process.env.SUPABASE_ANON_KEY
+  });
 
   try {
     console.log('🤖 SQL 생성 요청 받음');
@@ -263,21 +278,23 @@ module.exports = async (req, res) => {
 
     // SQL 생성 프롬프트 생성 (오류 학습 데이터 포함)
     const prompt = createSQLGenerationPrompt(userQuery, foundQueries, context, errorLearnings, commonPatterns);
+    console.log('📝 프롬프트 생성 완료');
 
     // Claude API 호출
-    console.log('🧠 Claude AI로 SQL 생성 중...');
+    console.log('🤖 Claude API 호출 중...');
     const claudeResponse = await callClaudeAPI(prompt);
+    console.log('✅ Claude 응답 받음');
 
-    // JSON 파싱
+    // Claude 응답 파싱
     let result;
     try {
-봐      // Claude 응답에서 JSON 부분만 추출
+      // JSON 부분만 추출 시도
       let jsonString = claudeResponse.trim();
       
-      // JSON 블록이 마크다운 코드 블록 안에 있는 경우 추출
+      // 마크다운 코드 블록 제거
       const jsonMatch = jsonString.match(/```json\s*([\s\S]*?)\s*```/) || 
-                       jsonString.match(/```\s*([\s\S]*?)\s*```/) ||
-                       [null, jsonString];
+                        jsonString.match(/```\s*([\s\S]*?)\s*```/) ||
+                        [null, jsonString];
       
       if (jsonMatch[1]) {
         jsonString = jsonMatch[1].trim();
@@ -300,38 +317,30 @@ module.exports = async (req, res) => {
       
       // Claude 응답에서 SQL 추출 시도 (더 강력한 정규식)
       const sqlMatch = claudeResponse.match(/SELECT[\s\S]*?(?=\n\n|$)/i) ||
-                      claudeResponse.match(/WITH[\s\S]*?(?=\n\n|$)/i) ||
-                      claudeResponse.match(/CREATE[\s\S]*?(?=\n\n|$)/i) ||
-                      claudeResponse.match(/INSERT[\s\S]*?(?=\n\n|$)/i) ||
-                      claudeResponse.match(/UPDATE[\s\S]*?(?=\n\n|$)/i) ||
-                      claudeResponse.match(/DELETE[\s\S]*?(?=\n\n|$)/i);
+                       claudeResponse.match(/WITH[\s\S]*?(?=\n\n|$)/i) ||
+                       claudeResponse.match(/CREATE[\s\S]*?(?=\n\n|$)/i) ||
+                       claudeResponse.match(/INSERT[\s\S]*?(?=\n\n|$)/i) ||
+                       claudeResponse.match(/UPDATE[\s\S]*?(?=\n\n|$)/i) ||
+                       claudeResponse.match(/DELETE[\s\S]*?(?=\n\n|$)/i);
       
-      // 간단한 예시 SQL 생성 (임시 해결책)
+      // 기본 응답 생성 (fallback SQL)
       let fallbackSQL = `-- AI가 생성한 쿼리 (${userQuery})
 SELECT 
-    token_address,
-    symbol,
-    SUM(amount_usd) as total_volume
+  token_address,
+  symbol,
+  SUM(amount_usd) as volume
 FROM dex.trades 
 WHERE blockchain = 'ethereum' 
-    AND block_time >= current_date - interval '7 days'
-GROUP BY token_address, symbol
-ORDER BY total_volume DESC
-LIMIT 5;`;
-      
-      // 기본 응답 생성
+  AND block_time >= current_date - interval '7 days'
+GROUP BY token_address, symbol 
+ORDER BY volume DESC 
+LIMIT 5`;
+
       result = {
         generatedSQL: sqlMatch ? sqlMatch[0].trim() : fallbackSQL,
-        explanation: sqlMatch ? 
-          "Claude AI가 SQL을 생성했지만 JSON 파싱에 실패했습니다. 추출된 SQL을 제공합니다." :
-          `사용자 요청 "${userQuery}"에 대한 기본 Dune Analytics SQL 쿼리입니다. 이더리움 DEX 거래 데이터를 분석합니다.`,
-        assumptions: [
-          "JSON 파싱 실패로 인한 fallback 응답",
-          "Dune Analytics의 dex.trades 테이블 사용",
-          "최근 7일간 데이터 조회"
-        ],
-        clarificationQuestions: [],
-        usedQueries: foundQueries.map(q => q.id),
+        explanation: "SQL이 생성되었습니다.",
+        assumptions: ["기본 Dune Analytics 스키마 사용"],
+        clarificationQuestions: undefined,
         confidence: sqlMatch ? 0.7 : 0.6,
         suggestedImprovements: [
           "Claude 응답 형식 개선 필요",
@@ -358,10 +367,38 @@ LIMIT 5;`;
     });
 
   } catch (error) {
-    console.error('❌ SQL 생성 오류:', error);
+    console.error('❌ SQL 생성 중 전체 오류:', {
+      message: error.message,
+      stack: error.stack,
+      requestBody: req.body,
+      env: {
+        hasClaudeKey: !!process.env.CLAUDE_API_KEY,
+        hasSupabaseUrl: !!process.env.SUPABASE_URL,
+        hasSupabaseKey: !!process.env.SUPABASE_ANON_KEY
+      }
+    });
+    
+    // 상세한 에러 응답
+    let errorMessage = '서버 내부 오류가 발생했습니다.';
+    let errorDetails = null;
+    
+    if (error.message.includes('Claude API')) {
+      errorMessage = 'Claude AI 서비스 연결에 실패했습니다.';
+      errorDetails = 'API 키를 확인하거나 잠시 후 다시 시도해주세요.';
+    } else if (error.message.includes('네트워크') || error.message.includes('fetch')) {
+      errorMessage = '네트워크 연결에 문제가 있습니다.';
+      errorDetails = '인터넷 연결을 확인하고 다시 시도해주세요.';
+    }
+    
     res.status(500).json({
       success: false,
-      error: `SQL 생성 중 오류가 발생했습니다: ${error.message}`
+      error: errorMessage,
+      details: errorDetails,
+      originalError: error.message,
+      debugInfo: process.env.NODE_ENV === 'development' ? {
+        message: error.message,
+        stack: error.stack
+      } : undefined
     });
   }
 };
