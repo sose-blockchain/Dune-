@@ -197,16 +197,21 @@ ${commonPatternsText}
 4. 날짜 형식을 올바르게 사용하세요
 5. JOIN 조건을 명확히 하세요
 
-다음 JSON 형태로만 응답해주세요:
+다음 JSON 형태로만 응답해주세요 (다른 텍스트 없이 JSON만):
+
 {
-  "generatedSQL": "생성된 SQL 쿼리",
-  "explanation": "쿼리에 대한 상세 설명",
-  "assumptions": ["가정사항1", "가정사항2"],
-  "clarificationQuestions": ["추가로 필요한 정보에 대한 질문"],
-  "usedQueries": [관련 쿼리 ID들],
+  "generatedSQL": "SELECT token_address, symbol, SUM(amount_usd) as volume FROM dex.trades WHERE blockchain = 'ethereum' AND block_time >= current_date - interval '7 days' GROUP BY token_address, symbol ORDER BY volume DESC LIMIT 5",
+  "explanation": "이더리움에서 지난 7일간 DEX 거래량을 집계하는 쿼리입니다.",
+  "assumptions": ["dex.trades 테이블 사용", "이더리움 블록체인 데이터"],
+  "clarificationQuestions": [],
   "confidence": 0.8,
-  "suggestedImprovements": ["개선 제안사항"]
-}`;
+  "suggestedImprovements": []
+}
+
+중요: 
+1. 반드시 유효한 JSON만 반환하세요
+2. generatedSQL에는 실제 실행 가능한 Dune Analytics SQL을 넣으세요
+3. 마크다운 코드 블록(```)은 사용하지 마세요`;
 }
 
 module.exports = async (req, res) => {
@@ -283,9 +288,10 @@ module.exports = async (req, res) => {
       
       result = JSON.parse(jsonString);
       
-      // 필수 필드 검증
-      if (!result.generatedSQL) {
-        throw new Error('생성된 SQL이 없습니다.');
+      // 필수 필드 검증 및 기본값 설정
+      if (!result.generatedSQL || result.generatedSQL.trim() === '') {
+        console.log('⚠️ Claude에서 빈 SQL을 반환함, fallback 사용');
+        throw new Error('생성된 SQL이 비어있습니다.');
       }
       
     } catch (parseError) {

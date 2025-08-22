@@ -128,7 +128,7 @@ function App() {
               </div>
               <div className="flex items-center space-x-4">
                 <span className="text-text-secondary text-sm">
-                  Bloomberg Terminal Style
+                  AI 기반 SQL 분석 플랫폼
                 </span>
               </div>
             </div>
@@ -440,7 +440,7 @@ function App() {
         <footer className="bg-secondary-dark border-t border-secondary-light mt-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="text-center text-text-secondary">
-              <p>&copy; 2024 Dune Query Analyzer. Bloomberg Terminal 스타일로 제작되었습니다.</p>
+              <p>&copy; 2024 Dune Query Analyzer. AI 기반 블록체인 데이터 분석 플랫폼입니다.</p>
             </div>
           </div>
         </footer>
