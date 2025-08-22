@@ -1,64 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-// 업데이트 필요 여부 판단 함수
-async function shouldUpdateExistingData(existingData, newData) {
-  try {
-    // 1. SQL 쿼리가 변경된 경우
-    if (existingData.raw_query !== newData.raw_query) {
-      return {
-        update: true,
-        reason: 'SQL 쿼리 내용이 변경됨'
-      };
-    }
-
-    // 2. 분석 품질이 향상된 경우 (더 많은 주석이나 상세한 분석)
-    const existingCommented = existingData.analysis_metadata?.originalAnalysisResult?.commentedQuery || '';
-    const newCommented = newData.analysis_metadata?.originalAnalysisResult?.commentedQuery || '';
-    
-    if (newCommented.length > existingCommented.length * 1.2) { // 20% 이상 더 상세함
-      return {
-        update: true,
-        reason: '분석 품질 향상 (더 상세한 주석)'
-      };
-    }
-
-    // 3. 블록체인/프로젝트 정보가 새로 추가된 경우
-    const existingHasProject = !!(existingData?.blockchain_type || existingData?.project_name);
-    const newHasProject = !!(newData?.blockchain_type || newData?.project_name);
-    
-    if (!existingHasProject && newHasProject) {
-      return {
-        update: true,
-        reason: '블록체인/프로젝트 정보 추가'
-      };
-    }
-
-    // 4. 30일 이상 오래된 분석인 경우 (재분석 권장)
-    const lastUpdateDate = existingData?.updated_at || existingData?.created_at;
-    const daysSinceLastUpdate = lastUpdateDate ? (new Date() - new Date(lastUpdateDate)) / (1000 * 60 * 60 * 24) : 999;
-    if (daysSinceLastUpdate > 30) {
-      return {
-        update: true,
-        reason: `오래된 분석 갱신 (${Math.floor(daysSinceLastUpdate)}일 전)`
-      };
-    }
-
-    // 업데이트 불필요
-    return {
-      update: false,
-      reason: '기존 분석이 충분히 최신이고 상세함'
-    };
-
-  } catch (error) {
-    console.error('업데이트 판단 중 오류:', error);
-    // 오류 시 안전하게 업데이트 수행
-    return {
-      update: true,
-      reason: '판단 오류로 인한 안전 업데이트'
-    };
-  }
-}
+// UPSERT 방식으로 단순화 - 복잡한 중복 체크 로직 제거
 
 // Supabase 클라이언트 초기화 (동적으로 생성)
 function createSupabaseClient() {
@@ -179,86 +122,50 @@ module.exports = async (req, res) => {
 
     console.log(`📊 Supabase 저장 시작 - Query ID: ${duneQueryId}`);
     
-    // 1단계: 기존 데이터 확인 및 중복 체크
-    const { data: existingData, error: checkError } = await supabase
+    // 간단한 UPSERT 방식 사용 (PostgreSQL의 ON CONFLICT 활용)
+    const { data: upsertData, error: upsertError } = await supabase
       .from('analyzed_queries')
-      .select('id, dune_query_id, title, raw_query, blockchain_type, project_name, project_category, analysis_metadata, created_at, updated_at')
-      .eq('dune_query_id', duneQueryId)
+      .upsert(
+        {
+          ...insertData,
+          updated_at: new Date().toISOString()
+        },
+        { 
+          onConflict: 'dune_query_id',
+          ignoreDuplicates: false 
+        }
+      )
+      .select()
       .single();
 
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows found
-      console.error('❌ 기존 데이터 확인 실패:', checkError.message);
+    if (upsertError) {
+      console.error('❌ UPSERT 실패:', {
+        message: upsertError.message,
+        code: upsertError.code,
+        details: upsertError.details,
+        hint: upsertError.hint
+      });
       return res.status(500).json({
         success: false,
-        error: `데이터베이스 조회 실패: ${checkError.message}`
+        error: `데이터베이스 저장 실패: ${upsertError.message}`
       });
     }
 
-    let finalResult;
+    console.log('✅ UPSERT 성공:', upsertData);
+
+    // 기존 데이터 확인하여 action 결정
     let action = 'created';
+    const { data: existingCheck } = await supabase
+      .from('analyzed_queries')
+      .select('created_at, updated_at')
+      .eq('dune_query_id', duneQueryId)
+      .single();
 
-    if (existingData) {
-      // 기존 데이터가 있는 경우 - 중복 체크 및 개선 여부 판단
-      console.log(`🔍 기존 데이터 발견 - Query ID: ${duneQueryId}`);
-      
-      const shouldUpdate = await shouldUpdateExistingData(existingData, insertData);
-      
-      if (shouldUpdate.update) {
-        console.log(`🔄 데이터 업데이트 사유: ${shouldUpdate.reason}`);
-        
-        // 업데이트 수행
-        const { data: updatedData, error: updateError } = await supabase
-          .from('analyzed_queries')
-          .update({
-            ...insertData,
-            updated_at: new Date().toISOString(),
-            analysis_metadata: {
-              ...insertData.analysis_metadata,
-              updateReason: shouldUpdate.reason,
-              previousVersion: existingData.analysis_metadata
-            }
-          })
-          .eq('dune_query_id', duneQueryId)
-          .select()
-          .single();
-
-        if (updateError) {
-          console.error('❌ 업데이트 실패:', updateError.message);
-          return res.status(500).json({
-            success: false,
-            error: '데이터베이스 업데이트 실패했습니다.'
-          });
-        }
-
-        finalResult = updatedData;
-        action = 'updated';
-      } else {
-        console.log(`⏭️ 업데이트 불필요: ${shouldUpdate.reason}`);
-        // 기존 데이터 반환
-        finalResult = existingData;
-        action = 'skipped';
-      }
-    } else {
-      // 새로운 데이터 삽입
-      console.log(`➕ 신규 데이터 삽입 - Query ID: ${duneQueryId}`);
-      
-      const { data: newData, error: insertError } = await supabase
-        .from('analyzed_queries')
-        .insert([insertData])
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('❌ 신규 데이터 삽입 실패:', insertError.message);
-        return res.status(500).json({
-          success: false,
-          error: `데이터베이스 저장 실패: ${insertError.message}`
-        });
-      }
-
-      finalResult = newData;
-      action = 'created';
+    if (existingCheck && existingCheck.created_at !== existingCheck.updated_at) {
+      action = 'updated';
     }
+
+    const finalResult = upsertData;
 
     // 중복 제거 및 최적화 로직 수행 완료
     console.log(`✅ Supabase 처리 완료 - ID: ${finalResult.id}, Query: ${duneQueryId}, Action: ${action}`);
