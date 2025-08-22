@@ -266,18 +266,46 @@ module.exports = async (req, res) => {
     // JSON 파싱
     let result;
     try {
-      result = JSON.parse(claudeResponse);
+      // Claude 응답에서 JSON 부분만 추출
+      let jsonString = claudeResponse.trim();
+      
+      // JSON 블록이 마크다운 코드 블록 안에 있는 경우 추출
+      const jsonMatch = jsonString.match(/```json\s*([\s\S]*?)\s*```/) || 
+                       jsonString.match(/```\s*([\s\S]*?)\s*```/) ||
+                       [null, jsonString];
+      
+      if (jsonMatch[1]) {
+        jsonString = jsonMatch[1].trim();
+      }
+      
+      console.log('🔍 Claude 응답 원본:', claudeResponse.substring(0, 200) + '...');
+      console.log('🔍 파싱 시도할 JSON:', jsonString.substring(0, 200) + '...');
+      
+      result = JSON.parse(jsonString);
+      
+      // 필수 필드 검증
+      if (!result.generatedSQL) {
+        throw new Error('생성된 SQL이 없습니다.');
+      }
+      
     } catch (parseError) {
       console.error('❌ Claude 응답 파싱 실패:', parseError);
+      console.log('📄 전체 Claude 응답:', claudeResponse);
+      
+      // Claude 응답에서 SQL 추출 시도
+      const sqlMatch = claudeResponse.match(/SELECT[\s\S]*?(?=\n\n|\n[A-Z]|$)/i) ||
+                      claudeResponse.match(/WITH[\s\S]*?(?=\n\n|\n[A-Z]|$)/i) ||
+                      claudeResponse.match(/CREATE[\s\S]*?(?=\n\n|\n[A-Z]|$)/i);
+      
       // 기본 응답 생성
       result = {
-        generatedSQL: claudeResponse,
-        explanation: "SQL 쿼리가 생성되었습니다.",
-        assumptions: [],
+        generatedSQL: sqlMatch ? sqlMatch[0].trim() : claudeResponse.substring(0, 500),
+        explanation: "AI가 SQL 쿼리를 생성했습니다. JSON 파싱에 실패하여 원본 응답을 제공합니다.",
+        assumptions: ["Claude 응답 파싱 실패로 인한 fallback 응답"],
         clarificationQuestions: [],
         usedQueries: foundQueries.map(q => q.id),
-        confidence: 0.7,
-        suggestedImprovements: []
+        confidence: 0.5,
+        suggestedImprovements: ["응답 형식을 개선해야 합니다."]
       };
     }
 
