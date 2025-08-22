@@ -5,6 +5,7 @@ import { QueryInputForm } from './components/QueryInput/QueryInputForm';
 import { ApiTestComponent } from './components/ApiTest/ApiTestComponent';
 import { QueryFormData } from './types/query';
 import { analysisService, AnalysisProgress } from './services/analysisService';
+import { validateDuneUrl } from './utils/validation';
 import './App.css';
 
 // React Query 클라이언트 생성
@@ -32,21 +33,73 @@ function App() {
     setProgress(null);
 
     try {
-      // 진행 상황 추적 분석 사용
-      const result = await analysisService.analyzeWithProgress(
-        data.duneUrl,
-        (progress) => {
-          setProgress(progress);
-          console.log('분석 진행:', progress);
-        }
-      );
+      // URL 검증하여 체인 쿼리인지 확인
+      const validation = validateDuneUrl(data.duneUrl);
+      const isChainQuery = validation.isValid && !!validation.chainedQueryId;
 
-      if (result.success && result.data) {
-        setAnalysisResult(result.data);
-        console.log('분석 완료:', result.data);
+      console.log('🔍 URL 분석:', { 
+        url: data.duneUrl, 
+        isChainQuery, 
+        primaryId: validation.queryId, 
+        chainedId: validation.chainedQueryId 
+      });
+
+      if (isChainQuery) {
+        // 체인 쿼리 분석
+        console.log('🔗 체인 쿼리 분석 시작');
+        const result = await analysisService.analyzeChainQueries(
+          data.duneUrl,
+          (progress) => {
+            setProgress(progress);
+            console.log('체인 분석 진행:', progress);
+          }
+        );
+
+        if (result.success && result.data) {
+          // 체인 쿼리 결과는 primaryQuery를 메인으로 표시
+          setAnalysisResult(result.data.primaryQuery);
+          console.log('체인 분석 완료:', result.data);
+        } else {
+          setError(result.error || '체인 쿼리 분석에 실패했습니다.');
+          console.error('체인 분석 실패:', result.error);
+        }
       } else {
-        setError(result.error || '분석에 실패했습니다.');
-        console.error('분석 실패:', result.error);
+        // 단일 쿼리 분석 + 저장
+        console.log('📋 단일 쿼리 분석 시작');
+        const result = await analysisService.analyzeWithProgress(
+          data.duneUrl,
+          (progress) => {
+            setProgress(progress);
+            console.log('분석 진행:', progress);
+          }
+        );
+
+        if (result.success && result.data) {
+          setAnalysisResult(result.data);
+          console.log('분석 완료:', result.data);
+          
+          // 단일 쿼리는 별도로 저장
+          console.log('💾 단일 쿼리 저장 시작');
+          const saveResult = await analysisService.saveAnalysis(
+            result.data.query.id,
+            result.data.query.rawQuery,
+            result.data.analysis,
+            {
+              title: result.data.query.title,
+              description: result.data.query.description,
+              category: 'analytics'
+            }
+          );
+          
+          if (saveResult.success) {
+            console.log('✅ 단일 쿼리 저장 성공');
+          } else {
+            console.error('❌ 단일 쿼리 저장 실패:', saveResult.error);
+          }
+        } else {
+          setError(result.error || '분석에 실패했습니다.');
+          console.error('분석 실패:', result.error);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
