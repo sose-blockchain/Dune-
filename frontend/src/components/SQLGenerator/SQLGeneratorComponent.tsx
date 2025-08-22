@@ -4,6 +4,7 @@ import {
   sqlGeneratorService, 
   SQLGenerationRequest, 
   SQLGenerationResponse,
+  RelatedQuery,
   ClarificationQuestion,
   ClarificationAnswer 
 } from '../../services/sqlGeneratorService';
