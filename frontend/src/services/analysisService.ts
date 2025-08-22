@@ -524,9 +524,15 @@ export class AnalysisService {
           // 연결된 쿼리도 데이터베이스에 저장
           console.log(`💾 연결된 쿼리(${chainedQueryId}) 저장 시작...`);
           
-          const chainedSaveResult = await this.saveAnalysisResult(
-            chainedAnalysis.data.query,
-            chainedAnalysis.data.analysis
+          const chainedSaveResult = await this.saveAnalysis(
+            chainedAnalysis.data.query.id,
+            chainedAnalysis.data.query.rawQuery,
+            chainedAnalysis.data.analysis,
+            {
+              title: chainedAnalysis.data.query.title,
+              description: chainedAnalysis.data.query.description,
+              category: 'analytics'
+            }
           );
           
           if (chainedSaveResult.success) {
