@@ -34,6 +34,8 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
     setResult(null);
 
     try {
+      console.log('🚀 SQL 생성 시작:', userQuery.trim());
+
       const request: SQLGenerationRequest = {
         userQuery: userQuery.trim(),
         context: {
@@ -42,8 +44,10 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
       };
 
       const response = await sqlGeneratorService.generateSQL(request);
+      console.log('📨 API 응답:', response);
 
       if (response.success && response.data) {
+        console.log('✅ SQL 생성 성공:', response.data);
         setResult(response.data);
         
         // 추가 질문이 있는 경우
@@ -58,11 +62,15 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
         }
         
         // 생성된 SQL을 상위 컴포넌트로 전달
-        onSQLGenerated?.(response.data.generatedSQL);
+        if (response.data.generatedSQL) {
+          onSQLGenerated?.(response.data.generatedSQL);
+        }
       } else {
+        console.error('❌ SQL 생성 실패:', response.error);
         setError(response.error || 'SQL 생성에 실패했습니다.');
       }
     } catch (err) {
+      console.error('❌ SQL 생성 예외:', err);
       setError(err instanceof Error ? err.message : 'SQL 생성 중 오류가 발생했습니다.');
     } finally {
       setIsGenerating(false);
@@ -372,7 +380,7 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
           </div>
 
           {/* 가정사항 */}
-          {result.assumptions.length > 0 && (
+          {result.assumptions && result.assumptions.length > 0 && (
             <div className="card">
               <h4 className="font-medium text-text-primary mb-2">가정사항</h4>
               <ul className="list-disc list-inside text-text-secondary space-y-1">
@@ -384,7 +392,7 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
           )}
 
           {/* 사용된 쿼리들 */}
-          {result.usedQueries.length > 0 && (
+          {result.usedQueries && result.usedQueries.length > 0 && (
             <div className="card">
               <div className="flex items-center justify-between mb-4">
                 <h4 className="font-medium text-text-primary">참고한 기존 쿼리</h4>

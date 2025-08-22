@@ -77,9 +77,22 @@ export class SQLGeneratorService {
 
       if (response.success && response.data) {
         console.log('✅ SQL 생성 성공');
+        
+        // API 응답 구조 안전하게 처리
+        const apiData = response.data as any;
+        const sqlResponse: SQLGenerationResponse = {
+          generatedSQL: apiData.generatedSQL || '',
+          explanation: apiData.explanation || 'SQL이 생성되었습니다.',
+          assumptions: Array.isArray(apiData.assumptions) ? apiData.assumptions : [],
+          clarificationQuestions: Array.isArray(apiData.clarificationQuestions) ? apiData.clarificationQuestions : undefined,
+          usedQueries: Array.isArray(apiData.usedQueries) ? apiData.usedQueries : [],
+          confidence: typeof apiData.confidence === 'number' ? apiData.confidence : 0.8,
+          suggestedImprovements: Array.isArray(apiData.suggestedImprovements) ? apiData.suggestedImprovements : undefined
+        };
+        
         return {
           success: true,
-          data: response.data as SQLGenerationResponse
+          data: sqlResponse
         };
       }
 
