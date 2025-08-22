@@ -109,7 +109,9 @@ export class ClaudeService {
 
 ## 출력 형태
 
-반드시 다음 JSON 형식으로 응답해주세요:
+**중요: 반드시 유효한 JSON만 응답하세요. 다른 텍스트는 포함하지 마세요.**
+
+```json
 {
   "commentedQuery": "주석이 추가된 SQL 쿼리 전체",
   "summary": "쿼리의 전체적인 목적과 기능에 대한 요약 (2-3문장)",
@@ -118,6 +120,9 @@ export class ClaudeService {
   "projectName": "uniswap|aave|compound|opensea|blur|pancakeswap 등 (프로젝트 특정이 안되면 null)",
   "projectCategory": "defi|nft|gaming|dao|bridge|oracle|dex|lending 등"
 }
+```
+
+응답은 반드시 위 JSON 형식으로만 하고, 추가 설명이나 마크다운은 포함하지 마세요.
 
 **주석을 추가할 SQL 쿼리:**
 \`\`\`sql
