@@ -508,43 +508,44 @@ export class AnalysisService {
 
       let chainedResult: FullAnalysisResult | undefined;
 
-      // 연결된 쿼리가 있는 경우 분석
+      // 체인 쿼리가 있는 경우 - 전체 URL로 분석
       if (isChained && chainedQueryId) {
         onProgress?.({
           stage: 'analyzing',
-          message: `연결된 쿼리(${chainedQueryId}) 분석 중...`,
+          message: `체인 쿼리(${primaryId}/${chainedQueryId}) 분석 중...`,
           progress: 70
         });
 
-        const chainedAnalysis = await this.analyzeFromUrl(`https://dune.com/queries/${chainedQueryId}`);
+        // 체인 쿼리는 전체 URL로 분석 (복합 쿼리)
+        const chainedAnalysis = await this.analyzeFromUrl(`https://dune.com/queries/${primaryId}/${chainedQueryId}`);
 
         if (chainedAnalysis.success && chainedAnalysis.data) {
           chainedResult = chainedAnalysis.data;
           
-          // 연결된 쿼리도 데이터베이스에 저장
-          console.log(`💾 연결된 쿼리(${chainedQueryId}) 저장 시작...`);
+          // 체인 쿼리도 데이터베이스에 저장
+          console.log(`💾 체인 쿼리(${primaryId}/${chainedQueryId}) 저장 시작...`);
           
           const chainedSaveResult = await this.saveAnalysis(
-            chainedAnalysis.data.query.id,
+            `${primaryId}_${chainedQueryId}`, // 복합 ID 사용
             chainedAnalysis.data.query.rawQuery,
             chainedAnalysis.data.analysis,
             {
-              title: chainedAnalysis.data.query.title,
-              description: chainedAnalysis.data.query.description,
-              category: 'analytics'
+              title: `${chainedAnalysis.data.query.title} (Chain Query)`,
+              description: `체인 쿼리: ${chainedAnalysis.data.query.description}`,
+              category: 'chain-analytics'
             }
           );
           
           if (chainedSaveResult.success) {
-            console.log(`✅ 연결된 쿼리(${chainedQueryId}) 저장 성공`);
+            console.log(`✅ 체인 쿼리(${primaryId}/${chainedQueryId}) 저장 성공`);
           } else {
-            console.error(`❌ 연결된 쿼리(${chainedQueryId}) 저장 실패:`, chainedSaveResult.error);
+            console.error(`❌ 체인 쿼리(${primaryId}/${chainedQueryId}) 저장 실패:`, chainedSaveResult.error);
           }
         }
 
         onProgress?.({
           stage: 'analyzing',
-          message: `연결된 쿼리(${chainedQueryId}) 분석 완료`,
+          message: `체인 쿼리(${primaryId}/${chainedQueryId}) 분석 완료`,
           progress: 90
         });
       }
