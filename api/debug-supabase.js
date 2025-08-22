@@ -34,8 +34,17 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Supabase 클라이언트 생성 테스트
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Supabase 클라이언트 생성 테스트 (Vercel 최적화)
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false
+      },
+      global: {
+        headers: {
+          'User-Agent': 'Dune-Analyzer/1.0'
+        }
+      }
+    });
 
     // 연결 테스트: analyzed_queries 테이블에서 데이터 조회
     const { data, error, count } = await supabase

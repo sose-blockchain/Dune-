@@ -1,23 +1,29 @@
 import React, { useState } from 'react';
-import { CheckCircle, XCircle, Loader2, Database, Brain } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, Database, Brain, Server } from 'lucide-react';
 
 export const ApiTestComponent: React.FC = () => {
   const [testResults, setTestResults] = useState<{
     dune: { loading: boolean; success?: boolean; error?: string };
     claude: { loading: boolean; success?: boolean; error?: string };
+    supabase: { loading: boolean; success?: boolean; error?: string; data?: any };
   }>({
     dune: { loading: false },
     claude: { loading: false },
+    supabase: { loading: false },
   });
 
   const [environmentInfo] = useState<{
     duneApiKey: string;
     claudeApiKey: string;
     claudeApiUrl: string;
+    supabaseUrl: string;
+    supabaseKey: string;
   }>({
     duneApiKey: '백엔드에서 설정됨',
     claudeApiKey: '백엔드에서 설정됨', 
     claudeApiUrl: 'https://api.anthropic.com/v1/messages',
+    supabaseUrl: '백엔드에서 설정됨',
+    supabaseKey: '백엔드에서 설정됨 (anon key)',
   });
 
   const testDuneApi = async () => {
@@ -99,8 +105,44 @@ export const ApiTestComponent: React.FC = () => {
     }
   };
 
+  const testSupabaseApi = async () => {
+    setTestResults(prev => ({
+      ...prev,
+      supabase: { loading: true }
+    }));
+
+    try {
+      // Supabase 연결 및 데이터 조회 테스트
+      const response = await fetch('/api/debug-supabase', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      
+      setTestResults(prev => ({
+        ...prev,
+        supabase: { 
+          loading: false, 
+          success: result.success || response.ok,
+          error: result.success ? undefined : (result.error || result.details || `HTTP ${response.status}`),
+          data: result.success ? result.data : undefined
+        }
+      }));
+    } catch (error) {
+      setTestResults(prev => ({
+        ...prev,
+        supabase: { 
+          loading: false, 
+          success: false,
+          error: error instanceof Error ? error.message : '알 수 없는 오류'
+        }
+      }));
+    }
+  };
+
   const testAllApis = async () => {
-    await Promise.all([testDuneApi(), testClaudeApi()]);
+    await Promise.all([testDuneApi(), testClaudeApi(), testSupabaseApi()]);
   };
 
   return (
@@ -132,6 +174,20 @@ export const ApiTestComponent: React.FC = () => {
           <div className="flex items-center space-x-2">
             <span className="text-text-secondary">Claude API URL:</span>
             <span className="font-mono text-text-primary">{environmentInfo.claudeApiUrl}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Server className="h-4 w-4 text-accent" />
+            <span className="text-text-secondary">Supabase URL:</span>
+            <span className={`font-mono ${environmentInfo.supabaseUrl === '설정됨' ? 'text-status-success' : 'text-status-error'}`}>
+              {environmentInfo.supabaseUrl}
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Server className="h-4 w-4 text-accent" />
+            <span className="text-text-secondary">Supabase Key:</span>
+            <span className={`font-mono ${environmentInfo.supabaseKey === '설정됨' ? 'text-status-success' : 'text-status-error'}`}>
+              {environmentInfo.supabaseKey}
+            </span>
           </div>
         </div>
       </div>
@@ -170,6 +226,19 @@ export const ApiTestComponent: React.FC = () => {
             <Brain className="h-4 w-4" />
           )}
           <span>Claude API 테스트</span>
+        </button>
+        
+        <button
+          onClick={testSupabaseApi}
+          disabled={testResults.supabase.loading}
+          className="btn-secondary flex items-center space-x-2"
+        >
+          {testResults.supabase.loading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Server className="h-4 w-4" />
+          )}
+          <span>Supabase 테스트</span>
         </button>
       </div>
 
@@ -231,6 +300,49 @@ export const ApiTestComponent: React.FC = () => {
             <div className="text-status-error text-sm">
               <p>❌ Claude API 연결 실패:</p>
               <p className="font-mono mt-1">{testResults.claude.error}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Supabase API 결과 */}
+        <div className="p-4 bg-secondary-dark rounded-lg">
+          <div className="flex items-center space-x-2 mb-2">
+            <Server className="h-5 w-5 text-accent" />
+            <h4 className="text-lg font-medium text-text-primary">Supabase 데이터베이스</h4>
+            {testResults.supabase.loading && <Loader2 className="h-4 w-4 animate-spin text-primary-accent" />}
+            {testResults.supabase.success === true && <CheckCircle className="h-4 w-4 text-status-success" />}
+            {testResults.supabase.success === false && <XCircle className="h-4 w-4 text-status-error" />}
+          </div>
+          
+          {testResults.supabase.success && (
+            <div className="text-status-success text-sm space-y-2">
+              <p>✅ Supabase 연결 성공! 데이터베이스 저장 기능을 사용할 수 있습니다.</p>
+              {testResults.supabase.data && (
+                <div className="mt-2 p-3 bg-secondary rounded border-l-2 border-status-success">
+                  <p className="text-text-secondary text-xs mb-1">연결 정보:</p>
+                  <p className="text-xs">총 레코드: <span className="font-mono text-text-primary">{testResults.supabase.data.totalRecords}</span></p>
+                  <p className="text-xs">연결 테스트: <span className="font-mono text-status-success">{testResults.supabase.data.connectionTest}</span></p>
+                  {testResults.supabase.data.sampleData && testResults.supabase.data.sampleData.length > 0 && (
+                    <p className="text-xs">샘플 데이터: <span className="font-mono text-text-primary">{testResults.supabase.data.sampleData.length}개 레코드</span></p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {testResults.supabase.error && (
+            <div className="text-status-error text-sm">
+              <p>❌ Supabase 연결 실패:</p>
+              <p className="font-mono mt-1">{testResults.supabase.error}</p>
+              <div className="mt-2 p-3 bg-status-error/10 rounded border-l-2 border-status-error">
+                <p className="text-xs text-text-secondary">가능한 원인:</p>
+                <ul className="text-xs mt-1 space-y-1 list-disc list-inside">
+                  <li>SUPABASE_URL 환경 변수 누락 또는 잘못된 형식</li>
+                  <li>SUPABASE_ANON_KEY 환경 변수 누락 또는 만료</li>
+                  <li>Supabase 프로젝트 일시 정지 또는 제한</li>
+                  <li>네트워크 연결 문제 (Vercel ↔ Supabase)</li>
+                </ul>
+              </div>
             </div>
           )}
         </div>

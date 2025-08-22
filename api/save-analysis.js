@@ -1,18 +1,34 @@
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-// Supabase 클라이언트 초기화
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+// Supabase 클라이언트 초기화 (동적으로 생성)
+function createSupabaseClient() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ Supabase 환경 변수가 설정되지 않았습니다:', {
-    SUPABASE_URL: !!supabaseUrl,
-    SUPABASE_ANON_KEY: !!supabaseKey
+  console.log('🔍 Supabase 환경 변수 체크:', {
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseKey,
+    urlPrefix: supabaseUrl ? supabaseUrl.substring(0, 30) + '...' : 'undefined',
+    keyPrefix: supabaseKey ? supabaseKey.substring(0, 20) + '...' : 'undefined'
   });
-}
 
-const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('❌ Supabase 환경 변수가 설정되지 않았습니다');
+    return null;
+  }
+
+  try {
+    return createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false // Vercel 서버리스 환경에서는 세션 유지 비활성화
+      }
+    });
+  } catch (error) {
+    console.error('❌ Supabase 클라이언트 생성 실패:', error.message);
+    return null;
+  }
+}
 
 module.exports = async (req, res) => {
   // CORS 헤더 설정
@@ -49,7 +65,9 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Supabase에 데이터 저장
+    // Supabase 클라이언트 동적 생성
+    const supabase = createSupabaseClient();
+    
     if (!supabase) {
       // Supabase 연결 실패 시 로그만 출력
       console.log(`⚠️ Supabase 연결 불가 - 로그로만 기록: ${duneQueryId}`);
