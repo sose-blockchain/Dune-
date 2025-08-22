@@ -50,8 +50,11 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
         console.log('✅ SQL 생성 성공:', response.data);
         console.log('🔍 generatedSQL 길이:', response.data.generatedSQL?.length);
         console.log('🔍 clarificationQuestions 개수:', response.data.clarificationQuestions?.length);
+        console.log('🔍 response.data 타입:', typeof response.data);
+        console.log('🔍 response.data 키들:', Object.keys(response.data));
         
         setResult(response.data);
+        console.log('📝 setResult 호출 완료');
         
         // 추가 질문이 있는 경우
         if (response.data.clarificationQuestions && response.data.clarificationQuestions.length > 0) {
@@ -318,6 +321,12 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
       {/* 추가 질문 */}
       {clarificationQuestions.length > 0 && (
         <div className="card border-status-info">
+          {/* 디버그 정보 */}
+          <div className="mb-4 p-2 bg-blue-900 rounded text-xs">
+            <strong>🔍 디버그 - 추가 질문:</strong>
+            <br />• clarificationQuestions 길이: {clarificationQuestions.length}
+            <br />• 질문들: {clarificationQuestions.map(q => q.question).join(', ')}
+          </div>
           <div className="flex items-center space-x-2 text-status-info mb-4">
             <Database className="h-5 w-5" />
             <span className="font-medium">추가 정보 필요</span>
@@ -351,6 +360,15 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
       {/* 결과 표시 */}
       {result && (
         <div className="space-y-6">
+          {/* 디버그 정보 */}
+          <div className="card border-yellow-500">
+            <h4 className="font-medium text-yellow-500 mb-2">🔍 디버그 - 결과 표시</h4>
+            <p className="text-xs">result 존재: {result ? 'YES' : 'NO'}</p>
+            <p className="text-xs">result 타입: {typeof result}</p>
+            <p className="text-xs">result 키들: {Object.keys(result).join(', ')}</p>
+            <p className="text-xs">generatedSQL 길이: {result.generatedSQL?.length || 0}</p>
+            <p className="text-xs">generatedSQL 내용: {result.generatedSQL?.substring(0, 50) || 'N/A'}...</p>
+          </div>
           {/* 생성된 SQL */}
           <div className="card">
             <div className="flex items-center justify-between mb-4">
