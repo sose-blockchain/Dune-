@@ -4,7 +4,6 @@ import {
   sqlGeneratorService, 
   SQLGenerationRequest, 
   SQLGenerationResponse,
-  RelatedQuery,
   ClarificationQuestion,
   ClarificationAnswer 
 } from '../../services/sqlGeneratorService';
@@ -399,15 +398,15 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
               
               {showRelatedQueries && (
                 <div className="space-y-3">
-                  {result.usedQueries.slice(0, 3).map((query, index) => (
+                  {result.usedQueries.slice(0, 3).map((query: any, index: number) => (
                     <div key={index} className="bg-secondary-dark p-3 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium text-text-primary">{query.title}</span>
-                        <span className="text-xs text-text-muted">관련도: {Math.round(query.relevanceScore * 100)}%</span>
+                        <span className="font-medium text-text-primary">{query.title || 'Untitled'}</span>
+                        <span className="text-xs text-text-muted">관련도: {Math.round((query.relevanceScore || 0) * 100)}%</span>
                       </div>
-                      <p className="text-text-secondary text-sm mb-2">{query.summary}</p>
+                      <p className="text-text-secondary text-sm mb-2">{query.summary || 'No summary'}</p>
                       <div className="flex flex-wrap gap-1">
-                        {query.keyFeatures.slice(0, 3).map((feature, idx) => (
+                        {(query.keyFeatures || []).slice(0, 3).map((feature: string, idx: number) => (
                           <span key={idx} className="px-2 py-1 bg-primary-accent/20 text-primary-accent text-xs rounded">
                             {feature}
                           </span>
