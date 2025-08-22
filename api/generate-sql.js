@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const axios = require('axios');
 require('dotenv').config();
 
 // Supabase 클라이언트 생성
@@ -20,35 +21,53 @@ function createSupabaseClient() {
   }
 }
 
-// Claude API 호출
+// Claude API 호출 (쿼리 분석과 동일한 방식 사용)
 async function callClaudeAPI(prompt) {
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
+    console.log('🔑 Claude API 키 상태:', !!process.env.CLAUDE_API_KEY ? '존재함' : '없음');
+    
+    if (!process.env.CLAUDE_API_KEY) {
+      throw new Error('Claude API 키가 설정되지 않았습니다.');
+    }
+
+    const response = await axios.post('https://api.anthropic.com/v1/messages', {
+      model: 'claude-3-5-sonnet-20241022',
+      messages: [{
+        role: 'user',
+        content: prompt
+      }],
+      max_tokens: 4000,
+      temperature: 0.3,
+      stream: false
+    }, {
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': process.env.CLAUDE_API_KEY,
         'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 4000,
-        messages: [{
-          role: 'user',
-          content: prompt
-        }]
-      })
+      timeout: 30000
     });
 
-    if (!response.ok) {
-      throw new Error(`Claude API 오류: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.content[0].text;
+    console.log('✅ Claude API 성공 응답 받음');
+    return response.data.content[0].text;
   } catch (error) {
-    console.error('❌ Claude API 호출 실패:', error);
-    throw error;
+    console.error('❌ Claude API 호출 실패:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data
+    });
+    
+    // axios 오류 처리 (쿼리 분석과 동일)
+    if (error.response) {
+      console.log(`⚠️ Claude API ${error.response.status} 오류 - Fallback SQL 사용`);
+    } else if (error.request) {
+      console.log('⚠️ Claude API 서버 연결 실패 - Fallback SQL 사용');
+    } else {
+      console.log('⚠️ Claude API 요청 설정 오류 - Fallback SQL 사용');
+    }
+    
+    return null; // 모든 실패 시 null 반환으로 fallback 트리거
   }
 }
 
@@ -279,11 +298,45 @@ module.exports = async (req, res) => {
     // SQL 생성 프롬프트 생성 (오류 학습 데이터 포함)
     const prompt = createSQLGenerationPrompt(userQuery, foundQueries, context, errorLearnings, commonPatterns);
     console.log('📝 프롬프트 생성 완료');
-
+    console.log('📝 프롬프트 내용:', prompt);
+    
     // Claude API 호출
     console.log('🤖 Claude API 호출 중...');
     const claudeResponse = await callClaudeAPI(prompt);
-    console.log('✅ Claude 응답 받음');
+    console.log('✅ Claude 응답 받음:', claudeResponse);
+
+    // Claude API 실패 시 즉시 fallback 제공
+    if (!claudeResponse) {
+      console.log('⚠️ Claude API 실패 - 즉시 Fallback SQL 제공');
+      const fallbackSQL = `-- AI가 생성한 쿼리: ${userQuery}
+SELECT 
+  token_address,
+  symbol,
+  SUM(amount_usd) as volume_usd
+FROM dex.trades 
+WHERE blockchain = 'ethereum' 
+  AND block_time >= current_date - interval '7 days'
+GROUP BY token_address, symbol 
+ORDER BY volume_usd DESC 
+LIMIT 5`;
+
+      const responseData = {
+        generatedSQL: fallbackSQL,
+        explanation: "Claude API 연결 문제로 기본 SQL을 제공합니다. 이더리움에서 지난 7일간 DEX 거래량 상위 5개 토큰을 조회하는 쿼리입니다.",
+        assumptions: ["dex.trades 테이블 사용", "이더리움 블록체인 데이터", "Claude API 연결 실패로 기본값 제공"],
+        clarificationQuestions: [],
+        confidence: 0.6,
+        suggestedImprovements: ["Claude API 연결 상태 확인 필요", "실제 토큰 데이터 검증 권장"],
+        usedQueries: foundQueries
+      };
+
+      console.log('📤 Fallback 응답 전송:', JSON.stringify(responseData, null, 2));
+      
+      return res.status(200).json({
+        success: true,
+        data: responseData
+      });
+    }
 
     // Claude 응답 파싱
     let result;

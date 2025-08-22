@@ -134,6 +134,7 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
 
       if (response.success && response.data) {
         setResult(response.data);
+        console.log('🔍 설정된 result 상태:', response.data);
         setClarificationQuestions([]);
         setAnswers([]);
         onSQLGenerated?.(response.data.generatedSQL);
