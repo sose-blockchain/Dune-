@@ -369,8 +369,15 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
               </div>
             </div>
             <pre className="bg-secondary-dark p-4 rounded-lg overflow-x-auto text-text-primary font-mono text-sm">
-              {result.generatedSQL}
+              {result.generatedSQL || '⚠️ SQL이 생성되지 않았습니다. 콘솔을 확인해주세요.'}
             </pre>
+            
+            {/* 디버그 정보 */}
+            <div className="mt-4 p-3 bg-gray-800 rounded text-xs">
+              <strong>디버그 정보:</strong>
+              <br />• generatedSQL 길이: {result.generatedSQL?.length || 0}
+              <br />• 전체 result 키들: {Object.keys(result).join(', ')}
+            </div>
           </div>
 
           {/* 설명 */}

@@ -266,7 +266,7 @@ module.exports = async (req, res) => {
     // JSON 파싱
     let result;
     try {
-      // Claude 응답에서 JSON 부분만 추출
+봐      // Claude 응답에서 JSON 부분만 추출
       let jsonString = claudeResponse.trim();
       
       // JSON 블록이 마크다운 코드 블록 안에 있는 경우 추출
@@ -310,13 +310,19 @@ module.exports = async (req, res) => {
     }
 
     console.log('✅ SQL 생성 완료');
+    console.log('📊 최종 result 객체:', JSON.stringify(result, null, 2));
+    console.log('🔍 generatedSQL 내용:', result.generatedSQL);
+
+    const responseData = {
+      ...result,
+      usedQueries: foundQueries
+    };
+    
+    console.log('📤 클라이언트로 전송할 데이터:', JSON.stringify(responseData, null, 2));
 
     res.status(200).json({
       success: true,
-      data: {
-        ...result,
-        usedQueries: foundQueries
-      }
+      data: responseData
     });
 
   } catch (error) {
