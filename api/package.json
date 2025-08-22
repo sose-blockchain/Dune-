@@ -4,6 +4,7 @@
   "description": "Vercel Functions for Dune Query Analyzer",
   "main": "index.js",
   "dependencies": {
+    "@supabase/supabase-js": "^2.56.0",
     "axios": "^1.6.0",
     "dotenv": "^16.3.1",
     "dune-query-analyzer": "file:.."

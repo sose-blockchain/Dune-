@@ -112,10 +112,11 @@ export class ClaudeService {
 반드시 다음 JSON 형식으로 응답해주세요:
 {
   "commentedQuery": "주석이 추가된 SQL 쿼리 전체",
-  "overallDifficulty": "beginner|intermediate|advanced",
   "summary": "쿼리의 전체적인 목적과 기능에 대한 요약 (2-3문장)",
-  "estimatedTime": 예상학습시간(분단위),
-  "keyFeatures": ["주요 기능1", "주요 기능2", "주요 기능3"]
+  "keyFeatures": ["주요 기능1", "주요 기능2", "주요 기능3"],
+  "blockchainType": "ethereum|polygon|arbitrum|optimism|base|bnb|solana|avalanche 등",
+  "projectName": "uniswap|aave|compound|opensea|blur|pancakeswap 등 (프로젝트 특정이 안되면 null)",
+  "projectCategory": "defi|nft|gaming|dao|bridge|oracle|dex|lending 등"
 }
 
 **주석을 추가할 SQL 쿼리:**
@@ -249,10 +250,11 @@ ${sqlQuery}
               
               analysisData = {
                 commentedQuery,
-                overallDifficulty: 'intermediate',
                 summary,
-                estimatedTime: 15,
-                keyFeatures: ['SQL 분석', '주석 추가', 'Dune Analytics']
+                keyFeatures: ['SQL 분석', '주석 추가', 'Dune Analytics'],
+                blockchainType: undefined,
+                projectName: undefined,
+                projectCategory: 'analytics'
               };
               
               console.log('✅ 마크다운 파싱으로 데이터 추출 완료');
@@ -263,10 +265,14 @@ ${sqlQuery}
               const analysisResult: AnalysisResult = {
                 queryId: '', // 나중에 설정됨
                 commentedQuery: analysisData.commentedQuery || sqlQuery,
-                overallDifficulty: analysisData.overallDifficulty || 'intermediate',
                 summary: analysisData.summary || '주석이 추가된 SQL 쿼리 분석이 완료되었습니다.',
-                estimatedTime: analysisData.estimatedTime || 10,
-                keyFeatures: analysisData.keyFeatures || ['SQL 분석', '주석 추가']
+                keyFeatures: analysisData.keyFeatures || ['SQL 분석', '주석 추가'],
+                blockchainType: analysisData.blockchainType || undefined,
+                projectName: analysisData.projectName || undefined,
+                projectCategory: analysisData.projectCategory || 'analytics',
+                // 하위 호환성을 위해 유지
+                overallDifficulty: analysisData.overallDifficulty || 'intermediate',
+                estimatedTime: analysisData.estimatedTime || 10
               };
 
               return {
@@ -280,10 +286,14 @@ ${sqlQuery}
           const fallbackResult: AnalysisResult = {
             queryId: '',
             commentedQuery: `-- SQL 쿼리 분석 완료\n-- 원본 쿼리에 주석을 추가하지 못했습니다.\n\n${sqlQuery}`,
-            overallDifficulty: 'intermediate',
             summary: 'SQL 쿼리에 주석을 추가하는 중 오류가 발생했지만, 기본 분석은 완료되었습니다.',
-            estimatedTime: 10,
-            keyFeatures: ['SQL 분석', '기본 주석']
+            keyFeatures: ['SQL 분석', '기본 주석'],
+            blockchainType: undefined,
+            projectName: undefined,
+            projectCategory: 'analytics',
+            // 하위 호환성을 위해 유지
+            overallDifficulty: 'intermediate',
+            estimatedTime: 10
           };
 
           return {
