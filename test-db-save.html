@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB 저장 테스트</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; font-family: monospace; white-space: pre-wrap; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🧪 DB 저장 테스트</h1>
+    
+    <div>
+        <button onclick="testSaveAPI()">테스트 데이터 저장</button>
+        <button onclick="testRealAnalysis()">실제 분석 데이터 저장</button>
+        <button onclick="clearResults()">결과 지우기</button>
+    </div>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_BASE_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000/api'
+            : '/api';
+
+        function log(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${type}`;
+            resultDiv.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            resultsDiv.appendChild(resultDiv);
+            console.log(message);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function testSaveAPI() {
+            try {
+                log('🧪 테스트 저장 API 호출 시작...');
+                
+                const response = await fetch(`${API_BASE_URL}/test-save`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    log(`✅ 테스트 저장 성공: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    log(`❌ 테스트 저장 실패: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ 테스트 저장 오류: ${error.message}`, 'error');
+            }
+        }
+
+        async function testRealAnalysis() {
+            try {
+                log('📊 실제 분석 데이터 저장 시작...');
+                
+                const analysisData = {
+                    duneQueryId: '3592168',
+                    duneUrl: 'https://dune.com/queries/3592168',
+                    title: '테스트 브릿지 통계',
+                    description: 'Across Protocol 브릿지 분석',
+                    category: 'analytics',
+                    difficultyLevel: 'intermediate',
+                    tags: ['bridge', 'across', 'ethereum'],
+                    rawQuery: 'SELECT COUNT(*) FROM transfers WHERE protocol = "across"',
+                    analysisResult: {
+                        commentedQuery: '-- Across Protocol 브릿지 트랜잭션 분석\nSELECT COUNT(*) FROM transfers WHERE protocol = "across"',
+                        summary: '브릿지 트랜잭션 개수를 계산하는 쿼리입니다.',
+                        keyFeatures: ['브릿지 분석', '트랜잭션 카운팅'],
+                        blockchainType: 'ethereum',
+                        projectName: 'Across Protocol',
+                        projectCategory: 'bridge'
+                    }
+                };
+
+                const response = await fetch(`${API_BASE_URL}/save-analysis`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(analysisData)
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    log(`✅ 실제 분석 저장 성공: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    log(`❌ 실제 분석 저장 실패: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ 실제 분석 저장 오류: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
