@@ -75,10 +75,21 @@ export class AnalysisService {
       const response = await apiClient.post('/save-analysis', saveData);
       
       if (response.success) {
-        console.log('✅ 분석 결과 저장 성공:', response.data);
+        const action = response.data?.action || 'created';
+        const actionMessages = {
+          created: '✅ 새로운 분석 결과 저장 완료',
+          updated: '🔄 기존 분석 결과 업데이트 완료', 
+          skipped: '⏭️ 중복 방지: 기존 분석 결과 유지'
+        };
+        
+        console.log(`${actionMessages[action]}:`, response.data);
         return {
           success: true,
-          data: response.data
+          data: {
+            ...response.data,
+            isDuplicate: action === 'skipped',
+            isUpdate: action === 'updated'
+          }
         };
       } else {
         console.error('❌ 분석 결과 저장 실패:', response.error);
