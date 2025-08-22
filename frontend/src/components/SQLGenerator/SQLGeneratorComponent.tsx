@@ -3,8 +3,7 @@ import { Send, Wand2, Database, AlertCircle, CheckCircle, Copy, ExternalLink } f
 import { 
   sqlGeneratorService, 
   SQLGenerationRequest, 
-  SQLGenerationResponse, 
-  RelatedQuery,
+  SQLGenerationResponse,
   ClarificationQuestion,
   ClarificationAnswer 
 } from '../../services/sqlGeneratorService';

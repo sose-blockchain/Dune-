@@ -27,7 +27,6 @@ function App() {
   const [progress, setProgress] = useState<AnalysisProgress | null>(null);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showApiTest, setShowApiTest] = useState(false);
 
   const handleQuerySubmit = async (data: QueryFormData) => {
     console.log('쿼리 제출:', data);
