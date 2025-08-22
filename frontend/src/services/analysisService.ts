@@ -21,6 +21,21 @@ export interface FullAnalysisResult {
   };
 }
 
+// 체인 쿼리 분석 결과
+export interface ChainAnalysisResult {
+  primaryQuery: FullAnalysisResult;
+  chainedQuery?: FullAnalysisResult;
+  relationship: {
+    isChained: boolean;
+    description: string;
+  };
+  metadata: {
+    totalQueries: number;
+    totalProcessingTime: number;
+    analyzedAt: string;
+  };
+}
+
 /**
  * 통합 분석 서비스
  */
@@ -408,6 +423,124 @@ export class AnalysisService {
       return {
         success: false,
         error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
+      };
+    }
+  }
+  /**
+   * 체인 쿼리 분석 (메인 쿼리 + 연결된 쿼리)
+   */
+  async analyzeChainQueries(
+    url: string,
+    onProgress?: (progress: AnalysisProgress) => void
+  ): Promise<{
+    success: boolean;
+    data?: ChainAnalysisResult;
+    error?: string;
+  }> {
+    const startTime = Date.now();
+
+    try {
+      // URL 검증 및 쿼리 ID 추출
+      const validation = validateDuneUrl(url);
+      if (!validation.isValid || !validation.queryId) {
+        return {
+          success: false,
+          error: validation.error || '올바르지 않은 URL입니다.'
+        };
+      }
+
+      const { queryId: primaryId, chainedQueryId } = validation;
+      const isChained = !!chainedQueryId;
+
+      onProgress?.({
+        stage: 'fetching',
+        message: isChained 
+          ? `메인 쿼리(${primaryId})와 연결된 쿼리(${chainedQueryId}) 분석 시작`
+          : `단일 쿼리(${primaryId}) 분석 시작`,
+        progress: 0
+      });
+
+      // 메인 쿼리 분석
+      onProgress?.({
+        stage: 'analyzing',
+        message: `메인 쿼리(${primaryId}) 분석 중...`,
+        progress: 20
+      });
+
+      const primaryResult = await this.analyzeFromUrl(`https://dune.com/queries/${primaryId}`);
+
+      if (!primaryResult.success || !primaryResult.data) {
+        return {
+          success: false,
+          error: `메인 쿼리 분석 실패: ${primaryResult.error}`
+        };
+      }
+
+      onProgress?.({
+        stage: 'analyzing',
+        message: `메인 쿼리(${primaryId}) 분석 완료`,
+        progress: 60
+      });
+
+      let chainedResult: FullAnalysisResult | undefined;
+
+      // 연결된 쿼리가 있는 경우 분석
+      if (isChained && chainedQueryId) {
+        onProgress?.({
+          stage: 'analyzing',
+          message: `연결된 쿼리(${chainedQueryId}) 분석 중...`,
+          progress: 70
+        });
+
+        const chainedAnalysis = await this.analyzeFromUrl(`https://dune.com/queries/${chainedQueryId}`);
+
+        if (chainedAnalysis.success && chainedAnalysis.data) {
+          chainedResult = chainedAnalysis.data;
+        }
+
+        onProgress?.({
+          stage: 'analyzing',
+          message: `연결된 쿼리(${chainedQueryId}) 분석 완료`,
+          progress: 90
+        });
+      }
+
+      // 결과 조합
+      onProgress?.({
+        stage: 'complete',
+        message: '체인 쿼리 분석 완료',
+        progress: 100
+      });
+
+      const endTime = Date.now();
+      const totalProcessingTime = endTime - startTime;
+
+      const result: ChainAnalysisResult = {
+        primaryQuery: primaryResult.data,
+        chainedQuery: chainedResult,
+        relationship: {
+          isChained,
+          description: isChained && chainedResult
+            ? `메인 쿼리(${primaryId})와 연결된 쿼리(${chainedQueryId})를 분석했습니다.`
+            : `단일 쿼리(${primaryId})를 분석했습니다.`
+        },
+        metadata: {
+          totalQueries: isChained && chainedResult ? 2 : 1,
+          totalProcessingTime,
+          analyzedAt: new Date().toISOString()
+        }
+      };
+
+      return {
+        success: true,
+        data: result
+      };
+
+    } catch (error) {
+      console.error('체인 쿼리 분석 실패:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '체인 쿼리 분석 중 오류가 발생했습니다.'
       };
     }
   }

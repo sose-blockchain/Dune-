@@ -1,7 +1,7 @@
 import { UrlValidationResult } from '../types/query';
 
-// Dune URL 정규식 패턴
-const DUNE_URL_REGEX = /^https:\/\/dune\.com\/queries\/(\d+)(?:\/.*)?$/;
+// Dune URL 정규식 패턴 (다중 쿼리 지원)
+const DUNE_URL_REGEX = /^https:\/\/dune\.com\/queries\/(\d+)(?:\/(\d+))?(?:\/.*)?$/;
 
 /**
  * Dune URL을 검증하고 쿼리 ID를 추출합니다.
@@ -30,15 +30,17 @@ export function validateDuneUrl(url: string): UrlValidationResult {
   if (!match) {
     return {
       isValid: false,
-      error: '올바른 Dune 쿼리 URL이 아닙니다. (예: https://dune.com/queries/123456)'
+      error: '올바른 Dune 쿼리 URL이 아닙니다. (예: https://dune.com/queries/123456 또는 https://dune.com/queries/123456/789012)'
     };
   }
 
-  const queryId = match[1];
+  const primaryQueryId = match[1];
+  const chainedQueryId = match[2]; // 연결된 쿼리 ID (있는 경우)
   
   return {
     isValid: true,
-    queryId
+    queryId: primaryQueryId,
+    chainedQueryId: chainedQueryId
   };
 }
 

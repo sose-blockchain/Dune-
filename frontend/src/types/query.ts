@@ -45,5 +45,6 @@ export interface QueryFormErrors {
 export interface UrlValidationResult {
   isValid: boolean;
   queryId?: string;
+  chainedQueryId?: string; // 연결된 쿼리 ID (체인 쿼리의 경우)
   error?: string;
 }
