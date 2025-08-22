@@ -144,6 +144,9 @@ module.exports = async (req, res) => {
       });
     }
 
+    // 안전한 데이터 접근을 위한 처리
+    const safeAnalysisResult = analysisResult || {};
+    
     // 데이터베이스에 저장할 데이터 준비
     const insertData = {
       dune_query_id: duneQueryId,
@@ -152,19 +155,27 @@ module.exports = async (req, res) => {
       description: description || "SQL 쿼리 분석",
       category: category || "general",
       raw_query: rawQuery,
-      commented_query: analysisResult.commentedQuery || rawQuery,
-      summary: analysisResult.summary || "SQL 쿼리 분석이 완료되었습니다.",
-      key_features: analysisResult.keyFeatures || [],
-      blockchain_type: analysisResult.blockchainType || null,
-      project_name: analysisResult.projectName || null,
-      project_category: analysisResult.projectCategory || "analytics",
-      tags: tags || [],
+      commented_query: safeAnalysisResult.commentedQuery || rawQuery,
+      summary: safeAnalysisResult.summary || "SQL 쿼리 분석이 완료되었습니다.",
+      key_features: Array.isArray(safeAnalysisResult.keyFeatures) ? safeAnalysisResult.keyFeatures : [],
+      blockchain_type: safeAnalysisResult.blockchainType || null,
+      project_name: safeAnalysisResult.projectName || null,
+      project_category: safeAnalysisResult.projectCategory || "analytics",
+      tags: Array.isArray(tags) ? tags : [],
       analysis_metadata: { 
-        originalAnalysisResult: analysisResult,
+        originalAnalysisResult: safeAnalysisResult,
         processedAt: new Date().toISOString(),
         apiVersion: "v1"
       }
     };
+
+    console.log('📋 준비된 저장 데이터:', {
+      dune_query_id: insertData.dune_query_id,
+      hasCommentedQuery: !!insertData.commented_query,
+      keyFeaturesCount: insertData.key_features.length,
+      blockchainType: insertData.blockchain_type,
+      projectName: insertData.project_name
+    });
 
     console.log(`📊 Supabase 저장 시작 - Query ID: ${duneQueryId}`);
     
@@ -275,11 +286,20 @@ module.exports = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('분석 결과 저장 오류:', error.message);
+    console.error('❌ 분석 결과 저장 오류:', {
+      message: error.message,
+      stack: error.stack,
+      requestBody: req.body,
+      timestamp: new Date().toISOString()
+    });
     
     res.status(500).json({
       success: false,
-      error: '분석 결과 저장 중 오류가 발생했습니다.'
+      error: `분석 결과 저장 중 오류가 발생했습니다: ${error.message}`,
+      details: {
+        errorType: error.constructor.name,
+        timestamp: new Date().toISOString()
+      }
     });
   }
 };
