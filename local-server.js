@@ -290,9 +290,22 @@ app.post('/api/save-analysis', async (req, res) => {
   }
 });
 
+// SQL 생성 API 엔드포인트 추가
+app.post('/api/generate-sql', require('./api/generate-sql'));
+
+// 관련 쿼리 검색 API
+app.post('/api/find-related-queries', require('./api/find-related-queries'));
+
+// SQL 오류 수정 API
+app.post('/api/fix-sql-error', require('./api/fix-sql-error'));
+
+// SQL 재생성 API
+app.post('/api/regenerate-sql', require('./api/generate-sql')); // 동일한 로직 사용
+
 app.listen(PORT, () => {
   console.log(`🚀 로컬 API 서버가 http://localhost:${PORT}에서 실행 중입니다!`);
   console.log(`📋 헬스체크: http://localhost:${PORT}/api/health`);
   console.log(`📊 Dune API: http://localhost:${PORT}/api/dune-graphql`);
   console.log(`🤖 Claude API: http://localhost:${PORT}/api/claude-messages`);
+  console.log(`🔧 SQL 생성: http://localhost:${PORT}/api/generate-sql`);
 });

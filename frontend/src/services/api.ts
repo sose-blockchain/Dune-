@@ -1,8 +1,8 @@
 // API 기본 설정 및 공통 함수들
 
-// 로컬 개발 환경에서는 항상 localhost:3000 사용
+// 로컬 개발 환경에서는 항상 localhost:3000 사용 (로컬 서버 포트)
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'http://localhost:3000/api'  // 로컬 개발
+  ? 'http://localhost:3000/api'  // 로컬 개발 (local-server.js)
   : '/api';  // 프로덕션 (Vercel)
 
 // API 응답 타입

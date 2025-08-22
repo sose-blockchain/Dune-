@@ -48,10 +48,14 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
 
       if (response.success && response.data) {
         console.log('✅ SQL 생성 성공:', response.data);
+        console.log('🔍 generatedSQL 길이:', response.data.generatedSQL?.length);
+        console.log('🔍 clarificationQuestions 개수:', response.data.clarificationQuestions?.length);
+        
         setResult(response.data);
         
         // 추가 질문이 있는 경우
         if (response.data.clarificationQuestions && response.data.clarificationQuestions.length > 0) {
+          console.log('📝 추가 질문 설정:', response.data.clarificationQuestions);
           const questions: ClarificationQuestion[] = response.data.clarificationQuestions.map((q, index) => ({
             id: `q_${index}`,
             question: q,
@@ -59,10 +63,14 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
             required: false
           }));
           setClarificationQuestions(questions);
+        } else {
+          console.log('📝 추가 질문 없음, clarificationQuestions 초기화');
+          setClarificationQuestions([]);
         }
         
         // 생성된 SQL을 상위 컴포넌트로 전달
         if (response.data.generatedSQL) {
+          console.log('📤 SQL을 상위 컴포넌트로 전달:', response.data.generatedSQL.substring(0, 100) + '...');
           onSQLGenerated?.(response.data.generatedSQL);
         }
       } else {
