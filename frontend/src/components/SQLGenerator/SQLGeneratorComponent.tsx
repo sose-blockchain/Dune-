@@ -50,6 +50,9 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
 
       if (response.success && response.data) {
         console.log('✅ SQL 생성 성공:', response.data);
+        console.log('🔍 [컴포넌트] response.data.generatedSQL:', response.data.generatedSQL);
+        console.log('🔍 [컴포넌트] response.data.generatedSQL 길이:', response.data.generatedSQL?.length);
+        console.log('🔍 [컴포넌트] typeof response.data.generatedSQL:', typeof response.data.generatedSQL);
         
         setResult(response.data);
         setCurrentStep('result'); // 결과 단계로 이동
@@ -372,7 +375,12 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
               </div>
             </div>
             <pre className="bg-secondary-dark p-4 rounded-lg overflow-x-auto text-text-primary font-mono text-sm">
-              {result.generatedSQL || '⚠️ SQL이 생성되지 않았습니다.'}
+              {(() => {
+                console.log('🎨 [렌더링] result.generatedSQL:', result.generatedSQL);
+                console.log('🎨 [렌더링] result.generatedSQL 길이:', result.generatedSQL?.length);
+                console.log('🎨 [렌더링] typeof result.generatedSQL:', typeof result.generatedSQL);
+                return result.generatedSQL || '⚠️ SQL이 생성되지 않았습니다.';
+              })()}
             </pre>
           </div>
 
