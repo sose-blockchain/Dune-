@@ -19,7 +19,6 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
   const [error, setError] = useState<string | null>(null);
   const [clarificationQuestions, setClarificationQuestions] = useState<ClarificationQuestion[]>([]);
   const [answers, setAnswers] = useState<ClarificationAnswer[]>([]);
-  const [showRelatedQueries, setShowRelatedQueries] = useState(false);
   
   // 단계 관리
   const [currentStep, setCurrentStep] = useState<'input' | 'result' | 'clarification'>('input');
