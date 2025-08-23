@@ -77,9 +77,13 @@ export class SQLGeneratorService {
 
       if (response.success && response.data) {
         console.log('✅ SQL 생성 성공');
+        console.log('🔍 [sqlGeneratorService] 원본 API 응답:', response.data);
         
         // API 응답 구조 안전하게 처리
         const apiData = response.data as any;
+        console.log('🔍 [sqlGeneratorService] apiData.generatedSQL:', apiData.generatedSQL);
+        console.log('🔍 [sqlGeneratorService] apiData 키들:', Object.keys(apiData));
+        
         const sqlResponse: SQLGenerationResponse = {
           generatedSQL: apiData.generatedSQL || '',
           explanation: apiData.explanation || 'SQL이 생성되었습니다.',
