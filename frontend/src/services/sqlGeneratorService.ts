@@ -79,19 +79,23 @@ export class SQLGeneratorService {
         console.log('✅ SQL 생성 성공');
         console.log('🔍 [sqlGeneratorService] 원본 API 응답:', response.data);
         
-        // API 응답 구조 안전하게 처리
+        // API 응답 구조 안전하게 처리 - 중첩 구조 확인
         const apiData = response.data as any;
-        console.log('🔍 [sqlGeneratorService] apiData.generatedSQL:', apiData.generatedSQL);
         console.log('🔍 [sqlGeneratorService] apiData 키들:', Object.keys(apiData));
+        console.log('🔍 [sqlGeneratorService] apiData.data 키들:', apiData.data ? Object.keys(apiData.data) : 'data 없음');
+        
+        // 실제 데이터는 apiData.data 안에 있음
+        const actualData = apiData.data || apiData;
+        console.log('🔍 [sqlGeneratorService] actualData.generatedSQL:', actualData.generatedSQL);
         
         const sqlResponse: SQLGenerationResponse = {
-          generatedSQL: apiData.generatedSQL || '',
-          explanation: apiData.explanation || 'SQL이 생성되었습니다.',
-          assumptions: Array.isArray(apiData.assumptions) ? apiData.assumptions : [],
-          clarificationQuestions: Array.isArray(apiData.clarificationQuestions) ? apiData.clarificationQuestions : undefined,
-          usedQueries: Array.isArray(apiData.usedQueries) ? apiData.usedQueries : [],
-          confidence: typeof apiData.confidence === 'number' ? apiData.confidence : 0.8,
-          suggestedImprovements: Array.isArray(apiData.suggestedImprovements) ? apiData.suggestedImprovements : undefined
+          generatedSQL: actualData.generatedSQL || '',
+          explanation: actualData.explanation || 'SQL이 생성되었습니다.',
+          assumptions: Array.isArray(actualData.assumptions) ? actualData.assumptions : [],
+          clarificationQuestions: Array.isArray(actualData.clarificationQuestions) ? actualData.clarificationQuestions : undefined,
+          usedQueries: Array.isArray(actualData.usedQueries) ? actualData.usedQueries : [],
+          confidence: typeof actualData.confidence === 'number' ? actualData.confidence : 0.8,
+          suggestedImprovements: Array.isArray(actualData.suggestedImprovements) ? actualData.suggestedImprovements : undefined
         };
         
         return {
