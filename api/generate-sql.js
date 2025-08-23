@@ -268,7 +268,28 @@ module.exports = async (req, res) => {
   try {
     console.log('🤖 SQL 생성 요청 받음');
 
-    const { userQuery, context, relatedQueries = [], errorToFix } = req.body;
+    // 두 가지 요청 형태 처리
+    let userQuery, context, relatedQueries = [], errorToFix;
+    
+    // 일반 생성 요청 형태
+    if (req.body.userQuery) {
+      ({ userQuery, context, relatedQueries = [], errorToFix } = req.body);
+    }
+    // 재생성 요청 형태 (originalRequest + clarificationAnswers)
+    else if (req.body.originalRequest) {
+      console.log('🔄 재생성 요청 처리');
+      const { originalRequest, clarificationAnswers = [] } = req.body;
+      userQuery = originalRequest.userQuery;
+      context = originalRequest.context || {};
+      relatedQueries = originalRequest.relatedQueries || [];
+      errorToFix = originalRequest.errorToFix;
+      
+      // 답변을 컨텍스트에 추가
+      if (clarificationAnswers.length > 0) {
+        const answerText = clarificationAnswers.map(a => `${a.questionId}: ${a.answer}`).join('; ');
+        context.additionalInfo = (context.additionalInfo || '') + ' 추가 정보: ' + answerText;
+      }
+    }
 
     if (!userQuery) {
       return res.status(400).json({
