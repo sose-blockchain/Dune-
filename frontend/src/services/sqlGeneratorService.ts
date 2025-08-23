@@ -176,9 +176,26 @@ export class SQLGeneratorService {
 
       if (response.success && response.data) {
         console.log('✅ SQL 재생성 성공');
+        console.log('🔍 [regenerateWithAnswers] 원본 응답:', response.data);
+        
+        // 중첩 구조 처리
+        const apiData = response.data as any;
+        const actualData = apiData.data || apiData;
+        console.log('🔍 [regenerateWithAnswers] actualData.generatedSQL:', actualData.generatedSQL);
+        
+        const sqlResponse: SQLGenerationResponse = {
+          generatedSQL: actualData.generatedSQL || '',
+          explanation: actualData.explanation || 'SQL이 재생성되었습니다.',
+          assumptions: Array.isArray(actualData.assumptions) ? actualData.assumptions : [],
+          clarificationQuestions: Array.isArray(actualData.clarificationQuestions) ? actualData.clarificationQuestions : undefined,
+          usedQueries: Array.isArray(actualData.usedQueries) ? actualData.usedQueries : [],
+          confidence: typeof actualData.confidence === 'number' ? actualData.confidence : 0.8,
+          suggestedImprovements: Array.isArray(actualData.suggestedImprovements) ? actualData.suggestedImprovements : undefined
+        };
+        
         return {
           success: true,
-          data: response.data as SQLGenerationResponse
+          data: sqlResponse
         };
       }
 
@@ -351,12 +368,18 @@ export class SQLGeneratorService {
 
       if (response.success && response.data) {
         console.log('✅ SQL 오류 수정 완료');
+        console.log('🔍 [fixSQLError] 원본 응답:', response.data);
+        
+        // 중첩 구조 처리
+        const apiData = response.data as any;
+        const actualData = apiData.data || apiData;
+        
         return {
           success: true,
-          data: response.data as {
-            fixedSQL: string;
-            explanation: string;
-            changes: string[];
+          data: {
+            fixedSQL: actualData.fixedSQL || '',
+            explanation: actualData.explanation || 'SQL 오류가 수정되었습니다.',
+            changes: Array.isArray(actualData.changes) ? actualData.changes : []
           }
         };
       }
