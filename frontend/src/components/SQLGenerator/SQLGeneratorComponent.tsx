@@ -21,6 +21,9 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
   const [answers, setAnswers] = useState<ClarificationAnswer[]>([]);
   const [showRelatedQueries, setShowRelatedQueries] = useState(false);
   
+  // 단계 관리
+  const [currentStep, setCurrentStep] = useState<'input' | 'result' | 'clarification'>('input');
+  
   // SQL 오류 수정 관련 상태
   const [errorMode, setErrorMode] = useState(false);
   const [originalSQL, setOriginalSQL] = useState('');
@@ -48,13 +51,9 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
 
       if (response.success && response.data) {
         console.log('✅ SQL 생성 성공:', response.data);
-        console.log('🔍 generatedSQL 길이:', response.data.generatedSQL?.length);
-        console.log('🔍 clarificationQuestions 개수:', response.data.clarificationQuestions?.length);
-        console.log('🔍 response.data 타입:', typeof response.data);
-        console.log('🔍 response.data 키들:', Object.keys(response.data));
         
         setResult(response.data);
-        console.log('📝 setResult 호출 완료');
+        setCurrentStep('result'); // 결과 단계로 이동
         
         // 추가 질문이 있는 경우
         if (response.data.clarificationQuestions && response.data.clarificationQuestions.length > 0) {
@@ -67,13 +66,11 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
           }));
           setClarificationQuestions(questions);
         } else {
-          console.log('📝 추가 질문 없음, clarificationQuestions 초기화');
           setClarificationQuestions([]);
         }
         
         // 생성된 SQL을 상위 컴포넌트로 전달
         if (response.data.generatedSQL) {
-          console.log('📤 SQL을 상위 컴포넌트로 전달:', response.data.generatedSQL.substring(0, 100) + '...');
           onSQLGenerated?.(response.data.generatedSQL);
         }
       } else {
@@ -145,7 +142,7 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
 
       if (response.success && response.data) {
         setResult(response.data);
-        console.log('🔍 설정된 result 상태:', response.data);
+        setCurrentStep('result'); // 재생성 후 결과 단계로 이동
         setClarificationQuestions([]);
         setAnswers([]);
         onSQLGenerated?.(response.data.generatedSQL);
@@ -168,6 +165,19 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
     }
   };
 
+  const handleNewQuery = () => {
+    setCurrentStep('input');
+    setResult(null);
+    setError(null);
+    setClarificationQuestions([]);
+    setAnswers([]);
+    setUserQuery('');
+  };
+
+  const handleAnswerClarifications = () => {
+    setCurrentStep('clarification');
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       {/* 헤더 */}
@@ -181,6 +191,30 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
         <p className="text-text-secondary">
           자연어로 원하는 분석을 설명하면 AI가 SQL 쿼리를 생성해드립니다.
         </p>
+      </div>
+
+      {/* 단계 표시 */}
+      <div className="flex items-center justify-center space-x-4 mb-6">
+        <div className={`flex items-center space-x-2 px-4 py-2 rounded-lg ${
+          currentStep === 'input' ? 'bg-primary-accent text-white' : 'bg-secondary-dark text-text-secondary'
+        }`}>
+          <span className="w-6 h-6 rounded-full bg-white text-primary-accent text-sm flex items-center justify-center font-bold">1</span>
+          <span>질문 입력</span>
+        </div>
+        <div className="w-8 h-0.5 bg-secondary-light"></div>
+        <div className={`flex items-center space-x-2 px-4 py-2 rounded-lg ${
+          currentStep === 'result' ? 'bg-primary-accent text-white' : 'bg-secondary-dark text-text-secondary'
+        }`}>
+          <span className="w-6 h-6 rounded-full bg-white text-primary-accent text-sm flex items-center justify-center font-bold">2</span>
+          <span>SQL 결과</span>
+        </div>
+        <div className="w-8 h-0.5 bg-secondary-light"></div>
+        <div className={`flex items-center space-x-2 px-4 py-2 rounded-lg ${
+          currentStep === 'clarification' ? 'bg-primary-accent text-white' : 'bg-secondary-dark text-text-secondary'
+        }`}>
+          <span className="w-6 h-6 rounded-full bg-white text-primary-accent text-sm flex items-center justify-center font-bold">3</span>
+          <span>추가 질문</span>
+        </div>
       </div>
 
       {/* 모드 선택 */}
@@ -209,42 +243,43 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
         </button>
       </div>
 
-      {/* 입력 폼 */}
-      <div className="card">
-        {!errorMode ? (
-          // 새 쿼리 생성 모드
-          <div className="space-y-4">
-            <label className="block text-sm font-medium text-text-primary">
-              원하는 분석을 자연어로 설명해주세요
-            </label>
-            <textarea
-              value={userQuery}
-              onChange={(e) => setUserQuery(e.target.value)}
-              placeholder="예: 지난 7일간 유니스왑에서 가장 많이 거래된 토큰 상위 10개를 찾아줘"
-              className="w-full h-32 p-4 bg-secondary-dark border border-secondary-light rounded-lg 
-                         text-text-primary placeholder-text-muted resize-none focus:ring-2 
-                         focus:ring-primary-accent focus:border-transparent"
-            />
-            <button
-              onClick={handleGenerateSQL}
-              disabled={!userQuery.trim() || isGenerating}
-              className="w-full py-3 bg-primary-accent text-white rounded-lg font-medium 
-                         hover:bg-primary-accent/90 disabled:opacity-50 disabled:cursor-not-allowed
-                         flex items-center justify-center space-x-2"
-            >
-              {isGenerating ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                  <span>SQL 생성 중...</span>
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4" />
-                  <span>SQL 생성</span>
-                </>
-              )}
-            </button>
-          </div>
+      {/* 단계 1: 질문 입력 */}
+      {currentStep === 'input' && (
+        <div className="card">
+          {!errorMode ? (
+            // 새 쿼리 생성 모드
+            <div className="space-y-4">
+              <label className="block text-sm font-medium text-text-primary">
+                원하는 분석을 자연어로 설명해주세요
+              </label>
+              <textarea
+                value={userQuery}
+                onChange={(e) => setUserQuery(e.target.value)}
+                placeholder="예: 지난 7일간 유니스왑에서 가장 많이 거래된 토큰 상위 10개를 찾아줘"
+                className="w-full h-32 p-4 bg-secondary-dark border border-secondary-light rounded-lg 
+                           text-text-primary placeholder-text-muted resize-none focus:ring-2 
+                           focus:ring-primary-accent focus:border-transparent"
+              />
+              <button
+                onClick={handleGenerateSQL}
+                disabled={!userQuery.trim() || isGenerating}
+                className="w-full py-3 bg-primary-accent text-white rounded-lg font-medium 
+                           hover:bg-primary-accent/90 disabled:opacity-50 disabled:cursor-not-allowed
+                           flex items-center justify-center space-x-2"
+              >
+                {isGenerating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    <span>SQL 생성 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    <span>SQL 생성</span>
+                  </>
+                )}
+              </button>
+            </div>
         ) : (
           // 오류 수정 모드
           <div className="space-y-4">
@@ -305,70 +340,12 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
             </button>
           </div>
         )}
-      </div>
-
-      {/* 오류 표시 */}
-      {error && (
-        <div className="card border-status-error">
-          <div className="flex items-center space-x-2 text-status-error">
-            <AlertCircle className="h-5 w-5" />
-            <span className="font-medium">오류 발생</span>
-          </div>
-          <p className="text-text-secondary mt-2">{error}</p>
         </div>
       )}
 
-      {/* 추가 질문 */}
-      {clarificationQuestions.length > 0 && (
-        <div className="card border-status-info">
-          {/* 디버그 정보 */}
-          <div className="mb-4 p-2 bg-blue-900 rounded text-xs">
-            <strong>🔍 디버그 - 추가 질문:</strong>
-            <br />• clarificationQuestions 길이: {clarificationQuestions.length}
-            <br />• 질문들: {clarificationQuestions.map(q => q.question).join(', ')}
-          </div>
-          <div className="flex items-center space-x-2 text-status-info mb-4">
-            <Database className="h-5 w-5" />
-            <span className="font-medium">추가 정보 필요</span>
-          </div>
-          <div className="space-y-4">
-            {clarificationQuestions.map((question) => (
-              <div key={question.id}>
-                <label className="block text-sm font-medium text-text-primary mb-2">
-                  {question.question}
-                </label>
-                <input
-                  type="text"
-                  onChange={(e) => handleAnswerQuestion(question.id, e.target.value)}
-                  className="w-full p-3 bg-secondary-dark border border-secondary-light rounded-lg 
-                             text-text-primary focus:ring-2 focus:ring-primary-accent focus:border-transparent"
-                />
-              </div>
-            ))}
-            <button
-              onClick={handleRegenerateWithAnswers}
-              disabled={answers.length === 0 || isGenerating}
-              className="w-full py-2 bg-status-info text-white rounded-lg font-medium 
-                         hover:bg-status-info/90 disabled:opacity-50"
-            >
-              답변 기반으로 재생성
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 결과 표시 */}
-      {result && (
+      {/* 단계 2: SQL 결과 */}
+      {currentStep === 'result' && result && (
         <div className="space-y-6">
-          {/* 디버그 정보 */}
-          <div className="card border-yellow-500">
-            <h4 className="font-medium text-yellow-500 mb-2">🔍 디버그 - 결과 표시</h4>
-            <p className="text-xs">result 존재: {result ? 'YES' : 'NO'}</p>
-            <p className="text-xs">result 타입: {typeof result}</p>
-            <p className="text-xs">result 키들: {Object.keys(result).join(', ')}</p>
-            <p className="text-xs">generatedSQL 길이: {result.generatedSQL?.length || 0}</p>
-            <p className="text-xs">generatedSQL 내용: {result.generatedSQL?.substring(0, 50) || 'N/A'}...</p>
-          </div>
           {/* 생성된 SQL */}
           <div className="card">
             <div className="flex items-center justify-between mb-4">
@@ -396,15 +373,8 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
               </div>
             </div>
             <pre className="bg-secondary-dark p-4 rounded-lg overflow-x-auto text-text-primary font-mono text-sm">
-              {result.generatedSQL || '⚠️ SQL이 생성되지 않았습니다. 콘솔을 확인해주세요.'}
+              {result.generatedSQL || '⚠️ SQL이 생성되지 않았습니다.'}
             </pre>
-            
-            {/* 디버그 정보 */}
-            <div className="mt-4 p-3 bg-gray-800 rounded text-xs">
-              <strong>디버그 정보:</strong>
-              <br />• generatedSQL 길이: {result.generatedSQL?.length || 0}
-              <br />• 전체 result 키들: {Object.keys(result).join(', ')}
-            </div>
           </div>
 
           {/* 설명 */}
@@ -425,42 +395,6 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
             </div>
           )}
 
-          {/* 사용된 쿼리들 */}
-          {result.usedQueries && result.usedQueries.length > 0 && (
-            <div className="card">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="font-medium text-text-primary">참고한 기존 쿼리</h4>
-                <button
-                  onClick={() => setShowRelatedQueries(!showRelatedQueries)}
-                  className="text-primary-accent hover:underline"
-                >
-                  {showRelatedQueries ? '숨기기' : '보기'}
-                </button>
-              </div>
-              
-              {showRelatedQueries && (
-                <div className="space-y-3">
-                  {result.usedQueries.slice(0, 3).map((query: any, index: number) => (
-                    <div key={index} className="bg-secondary-dark p-3 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium text-text-primary">{query.title || 'Untitled'}</span>
-                        <span className="text-xs text-text-muted">관련도: {Math.round((query.relevanceScore || 0) * 100)}%</span>
-                      </div>
-                      <p className="text-text-secondary text-sm mb-2">{query.summary || 'No summary'}</p>
-                      <div className="flex flex-wrap gap-1">
-                        {(query.keyFeatures || []).slice(0, 3).map((feature: string, idx: number) => (
-                          <span key={idx} className="px-2 py-1 bg-primary-accent/20 text-primary-accent text-xs rounded">
-                            {feature}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
           {/* 개선 제안 */}
           {result.suggestedImprovements && result.suggestedImprovements.length > 0 && (
             <div className="card">
@@ -472,8 +406,96 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
               </ul>
             </div>
           )}
+
+          {/* 액션 버튼들 */}
+          <div className="flex space-x-4">
+            <button
+              onClick={handleNewQuery}
+              className="px-6 py-3 bg-secondary-dark text-text-primary rounded-lg font-medium 
+                         hover:bg-secondary-light flex items-center space-x-2"
+            >
+              <Wand2 className="h-4 w-4" />
+              <span>새 질문하기</span>
+            </button>
+            
+            {clarificationQuestions.length > 0 && (
+              <button
+                onClick={handleAnswerClarifications}
+                className="px-6 py-3 bg-status-info text-white rounded-lg font-medium 
+                           hover:bg-status-info/90 flex items-center space-x-2"
+              >
+                <Database className="h-4 w-4" />
+                <span>추가 질문 답변하기 ({clarificationQuestions.length}개)</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
+
+      {/* 단계 3: 추가 질문 */}
+      {currentStep === 'clarification' && clarificationQuestions.length > 0 && (
+        <div className="card border-status-info">
+          <div className="flex items-center space-x-2 text-status-info mb-4">
+            <Database className="h-5 w-5" />
+            <span className="font-medium">추가 정보가 필요합니다</span>
+          </div>
+          <div className="space-y-4">
+            {clarificationQuestions.map((question) => (
+              <div key={question.id}>
+                <label className="block text-sm font-medium text-text-primary mb-2">
+                  {question.question}
+                </label>
+                <input
+                  type="text"
+                  onChange={(e) => handleAnswerQuestion(question.id, e.target.value)}
+                  className="w-full p-3 bg-secondary-dark border border-secondary-light rounded-lg 
+                             text-text-primary focus:ring-2 focus:ring-primary-accent focus:border-transparent"
+                />
+              </div>
+            ))}
+            <div className="flex space-x-4">
+              <button
+                onClick={handleRegenerateWithAnswers}
+                disabled={answers.length === 0 || isGenerating}
+                className="px-6 py-3 bg-status-info text-white rounded-lg font-medium 
+                           hover:bg-status-info/90 disabled:opacity-50 flex items-center space-x-2"
+              >
+                {isGenerating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    <span>재생성 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-4 w-4" />
+                    <span>답변 기반으로 재생성</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setCurrentStep('result')}
+                className="px-6 py-3 bg-secondary-dark text-text-primary rounded-lg font-medium 
+                           hover:bg-secondary-light"
+              >
+                현재 결과로 돌아가기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 오류 표시 */}
+      {error && (
+        <div className="card border-status-error">
+          <div className="flex items-center space-x-2 text-status-error">
+            <AlertCircle className="h-5 w-5" />
+            <span className="font-medium">오류 발생</span>
+          </div>
+          <p className="text-text-secondary mt-2">{error}</p>
+        </div>
+      )}
+
+
     </div>
   );
 };
