@@ -147,6 +147,124 @@ async function getCommonErrorPatterns(supabase) {
   }
 }
 
+// 데이터베이스 스키마 정보 가져오기
+async function getDatabaseSchema(supabase) {
+  try {
+    // 실제 Dune Analytics에서 사용하는 주요 테이블 정보
+    const schemaInfo = {
+      tables: {
+        'dex.trades': {
+          description: 'DEX 거래 데이터 - 모든 DEX의 거래 정보',
+          columns: [
+            'blockchain', 'project', 'version', 'block_time', 'token_bought_address', 'token_sold_address',
+            'token_bought_symbol', 'token_sold_symbol', 'token_pair_address', 'token_bought_amount',
+            'token_sold_amount', 'token_bought_amount_raw', 'token_sold_amount_raw', 'amount_usd',
+            'tx_hash', 'tx_from', 'tx_to', 'evt_index', 'trace_address'
+          ],
+          examples: [
+            "SELECT blockchain, project, SUM(amount_usd) as volume FROM dex.trades WHERE block_time >= current_date - interval '7 days' GROUP BY blockchain, project",
+            "SELECT token_bought_symbol, SUM(amount_usd) as volume FROM dex.trades WHERE blockchain = 'ethereum' AND project = 'uniswap' GROUP BY token_bought_symbol ORDER BY volume DESC"
+          ]
+        },
+        'tokens.erc20': {
+          description: 'ERC20 토큰 정보',
+          columns: ['blockchain', 'contract_address', 'symbol', 'name', 'decimals', 'total_supply'],
+          examples: [
+            "SELECT symbol, name, total_supply FROM tokens.erc20 WHERE blockchain = 'ethereum' AND symbol = 'USDC'"
+          ]
+        },
+        'prices.usd': {
+          description: '토큰 가격 데이터',
+          columns: ['blockchain', 'contract_address', 'symbol', 'minute', 'price'],
+          examples: [
+            "SELECT symbol, AVG(price) as avg_price FROM prices.usd WHERE blockchain = 'ethereum' AND symbol = 'WETH' AND minute >= current_date - interval '7 days' GROUP BY symbol"
+          ]
+        },
+        'lending.borrow': {
+          description: '대출 프로토콜 차입 데이터',
+          columns: ['blockchain', 'project', 'version', 'block_time', 'token_address', 'token_symbol', 'amount', 'amount_usd', 'tx_hash'],
+          examples: [
+            "SELECT project, SUM(amount_usd) as total_borrowed FROM lending.borrow WHERE blockchain = 'ethereum' AND block_time >= current_date - interval '30 days' GROUP BY project"
+          ]
+        },
+        'lending.deposit': {
+          description: '대출 프로토콜 예치 데이터',
+          columns: ['blockchain', 'project', 'version', 'block_time', 'token_address', 'token_symbol', 'amount', 'amount_usd', 'tx_hash'],
+          examples: [
+            "SELECT project, SUM(amount_usd) as total_deposited FROM lending.deposit WHERE blockchain = 'ethereum' AND block_time >= current_date - interval '30 days' GROUP BY project"
+          ]
+        },
+        'nft.trades': {
+          description: 'NFT 거래 데이터',
+          columns: ['blockchain', 'project', 'version', 'block_time', 'token_id', 'collection', 'amount_usd', 'tx_hash'],
+          examples: [
+            "SELECT collection, SUM(amount_usd) as volume FROM nft.trades WHERE blockchain = 'ethereum' AND block_time >= current_date - interval '7 days' GROUP BY collection ORDER BY volume DESC"
+          ]
+        },
+        'bridge.transfers': {
+          description: '브리지 전송 데이터',
+          columns: ['blockchain', 'project', 'version', 'block_time', 'token_address', 'token_symbol', 'amount', 'amount_usd', 'tx_hash'],
+          examples: [
+            "SELECT project, SUM(amount_usd) as total_volume FROM bridge.transfers WHERE block_time >= current_date - interval '7 days' GROUP BY project ORDER BY total_volume DESC"
+          ]
+        }
+      },
+      commonPatterns: {
+        timeRanges: [
+          "current_date - interval '1 day'",
+          "current_date - interval '7 days'", 
+          "current_date - interval '30 days'",
+          "current_date - interval '90 days'",
+          "current_date - interval '1 year'"
+        ],
+        aggregations: [
+          "SUM(amount_usd) as total_volume",
+          "COUNT(*) as transaction_count", 
+          "AVG(amount_usd) as avg_amount",
+          "MAX(amount_usd) as max_amount"
+        ],
+        filters: [
+          "blockchain = 'ethereum'",
+          "project = 'uniswap'",
+          "token_symbol = 'WETH'",
+          "block_time >= current_date - interval '7 days'"
+        ]
+      }
+    };
+
+    return schemaInfo;
+  } catch (error) {
+    console.error('스키마 정보 가져오기 실패:', error);
+    return null;
+  }
+}
+
+// 실제 사용 가능한 테이블과 컬럼 검증
+function validateTableAndColumns(sqlQuery, schemaInfo) {
+  if (!schemaInfo || !schemaInfo.tables) {
+    return { isValid: true, suggestions: [] }; // 스키마 정보가 없으면 검증 건너뛰기
+  }
+
+  const suggestions = [];
+  const tables = Object.keys(schemaInfo.tables);
+  
+  // FROM 절에서 테이블명 추출
+  const fromMatch = sqlQuery.match(/FROM\s+([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)/gi);
+  if (fromMatch) {
+    fromMatch.forEach(match => {
+      const tableName = match.replace(/FROM\s+/i, '').toLowerCase();
+      if (!tables.includes(tableName)) {
+        suggestions.push(`테이블 '${tableName}'이 존재하지 않습니다. 사용 가능한 테이블: ${tables.join(', ')}`);
+      }
+    });
+  }
+
+  return {
+    isValid: suggestions.length === 0,
+    suggestions
+  };
+}
+
 // 간단한 관련성 점수 계산
 function calculateRelevanceScore(userQuery, queryText) {
   if (!userQuery || !queryText) return 0;
@@ -164,8 +282,8 @@ function calculateRelevanceScore(userQuery, queryText) {
   return score;
 }
 
-// SQL 생성 프롬프트 생성
-function createSQLGenerationPrompt(userQuery, relatedQueries, context, errorLearnings, commonPatterns) {
+// SQL 생성 프롬프트 생성 (고도화된 버전)
+function createSQLGenerationPrompt(userQuery, relatedQueries, context, errorLearnings, commonPatterns, schemaInfo) {
   const relatedQueriesText = relatedQueries.length > 0 
     ? relatedQueries.map(q => `
 제목: ${q.title}
@@ -191,7 +309,27 @@ SQL: ${q.rawQuery}
 ---`).join('\n')
     : '일반적인 오류 패턴 데이터가 없습니다.';
 
-  return `당신은 Dune Analytics SQL 쿼리 전문가입니다. 사용자의 자연어 요청을 바탕으로 SQL 쿼리를 생성해주세요.
+  // 스키마 정보 추가
+  let schemaText = '';
+  if (schemaInfo && schemaInfo.tables) {
+    schemaText = `
+사용 가능한 테이블 및 컬럼 정보:
+${Object.entries(schemaInfo.tables).map(([tableName, tableInfo]) => `
+테이블: ${tableName}
+설명: ${tableInfo.description}
+주요 컬럼: ${tableInfo.columns.join(', ')}
+예시 쿼리:
+${tableInfo.examples.map(ex => `  ${ex}`).join('\n')}
+---`).join('\n')}
+
+일반적인 패턴:
+시간 범위: ${schemaInfo.commonPatterns.timeRanges.join(', ')}
+집계 함수: ${schemaInfo.commonPatterns.aggregations.join(', ')}
+필터 조건: ${schemaInfo.commonPatterns.filters.join(', ')}
+`;
+  }
+
+  return `당신은 Dune Analytics SQL 쿼리 전문가입니다. 사용자의 자연어 요청을 바탕으로 실제 존재하는 테이블과 컬럼을 사용하여 SQL 쿼리를 생성해주세요.
 
 사용자 요청: "${userQuery}"
 
@@ -208,29 +346,33 @@ ${commonPatternsText}
 - 블록체인: ${context?.blockchain || '지정 안됨'}
 - 시간범위: ${context?.timeframe || '지정 안됨'}
 - 프로토콜: ${context?.protocols?.join(', ') || '지정 안됨'}
+${schemaText}
 
-⚠️ 주의사항 (과거 오류 데이터 기반):
-1. 테이블명은 정확한 스키마를 포함하세요 (예: ethereum.core.transactions)
-2. 컬럼명을 확인하세요 (예: value_eth, not value)
+⚠️ 중요 규칙:
+1. 반드시 위에 제공된 실제 테이블과 컬럼만 사용하세요
+2. 존재하지 않는 테이블이나 컬럼을 가정하지 마세요
 3. PostgreSQL 문법을 사용하세요
-4. 날짜 형식을 올바르게 사용하세요
+4. 날짜 형식은 'current_date - interval' 형태를 사용하세요
 5. JOIN 조건을 명확히 하세요
+6. 적절한 집계 함수를 사용하세요 (SUM, COUNT, AVG 등)
+7. 성능을 고려하여 LIMIT을 사용하세요
 
 다음 JSON 형태로만 응답해주세요 (다른 텍스트 없이 JSON만):
 
 {
-  "generatedSQL": "SELECT token_address, symbol, SUM(amount_usd) as volume FROM dex.trades WHERE blockchain = 'ethereum' AND block_time >= current_date - interval '7 days' GROUP BY token_address, symbol ORDER BY volume DESC LIMIT 5",
-  "explanation": "이더리움에서 지난 7일간 DEX 거래량을 집계하는 쿼리입니다.",
-  "assumptions": ["dex.trades 테이블 사용", "이더리움 블록체인 데이터"],
+  "generatedSQL": "SELECT blockchain, project, SUM(amount_usd) as volume FROM dex.trades WHERE block_time >= current_date - interval '7 days' GROUP BY blockchain, project ORDER BY volume DESC LIMIT 10",
+  "explanation": "지난 7일간 블록체인별 DEX 프로젝트 거래량을 집계하는 쿼리입니다.",
+  "assumptions": ["dex.trades 테이블 사용", "amount_usd 컬럼으로 거래량 계산"],
   "clarificationQuestions": [],
-  "confidence": 0.8,
+  "confidence": 0.9,
   "suggestedImprovements": []
 }
 
 중요: 
 1. 반드시 유효한 JSON만 반환하세요
-2. generatedSQL에는 실제 실행 가능한 Dune Analytics SQL을 넣으세요
-3. 마크다운 코드 블록(\`\`\`)은 사용하지 마세요`;
+2. generatedSQL에는 실제 존재하는 테이블과 컬럼만 사용하세요
+3. 마크다운 코드 블록(\`\`\`)은 사용하지 마세요
+4. 사용자 요청에 맞는 적절한 테이블을 선택하세요`;
 }
 
 module.exports = async (req, res) => {
@@ -303,6 +445,7 @@ module.exports = async (req, res) => {
     let foundQueries = relatedQueries;
     let errorLearnings = [];
     let commonPatterns = [];
+    let schemaInfo = null; // 스키마 정보 초기화
 
     if (supabase) {
       if (foundQueries.length === 0) {
@@ -314,10 +457,11 @@ module.exports = async (req, res) => {
       // 오류 학습 데이터 가져오기
       errorLearnings = await getErrorLearnings(supabase, userQuery);
       commonPatterns = await getCommonErrorPatterns(supabase);
+      schemaInfo = await getDatabaseSchema(supabase); // 스키마 정보 가져오기
     }
 
     // SQL 생성 프롬프트 생성 (오류 학습 데이터 포함)
-    const prompt = createSQLGenerationPrompt(userQuery, foundQueries, context, errorLearnings, commonPatterns);
+    const prompt = createSQLGenerationPrompt(userQuery, foundQueries, context, errorLearnings, commonPatterns, schemaInfo);
     console.log('📝 프롬프트 생성 완료');
     console.log('📝 프롬프트 내용:', prompt);
     
@@ -329,17 +473,55 @@ module.exports = async (req, res) => {
     // Claude API 실패 시 즉시 fallback 제공
     if (!claudeResponse) {
       console.log('⚠️ Claude API 실패 - 즉시 Fallback SQL 제공');
-      const fallbackSQL = `-- AI가 생성한 쿼리: ${userQuery}
+      
+      // 스키마 정보를 기반으로 적절한 fallback SQL 생성
+      let fallbackSQL = `-- AI가 생성한 쿼리: ${userQuery}
 SELECT 
-  token_address,
-  symbol,
+  blockchain,
+  project,
   SUM(amount_usd) as volume_usd
 FROM dex.trades 
+WHERE block_time >= current_date - interval '7 days'
+GROUP BY blockchain, project 
+ORDER BY volume_usd DESC 
+LIMIT 10`;
+      
+      // 사용자 요청에 따라 다른 테이블 선택
+      const lowerQuery = userQuery.toLowerCase();
+      if (lowerQuery.includes('nft') || lowerQuery.includes('collection')) {
+        fallbackSQL = `-- AI가 생성한 쿼리: ${userQuery}
+SELECT 
+  collection,
+  SUM(amount_usd) as volume_usd
+FROM nft.trades 
 WHERE blockchain = 'ethereum' 
   AND block_time >= current_date - interval '7 days'
-GROUP BY token_address, symbol 
+GROUP BY collection 
 ORDER BY volume_usd DESC 
-LIMIT 5`;
+LIMIT 10`;
+      } else if (lowerQuery.includes('lending') || lowerQuery.includes('borrow') || lowerQuery.includes('deposit')) {
+        fallbackSQL = `-- AI가 생성한 쿼리: ${userQuery}
+SELECT 
+  project,
+  SUM(amount_usd) as total_amount
+FROM lending.borrow 
+WHERE blockchain = 'ethereum' 
+  AND block_time >= current_date - interval '30 days'
+GROUP BY project 
+ORDER BY total_amount DESC 
+LIMIT 10`;
+      } else if (lowerQuery.includes('price') || lowerQuery.includes('token')) {
+        fallbackSQL = `-- AI가 생성한 쿼리: ${userQuery}
+SELECT 
+  symbol,
+  AVG(price) as avg_price
+FROM prices.usd 
+WHERE blockchain = 'ethereum' 
+  AND minute >= current_date - interval '7 days'
+GROUP BY symbol 
+ORDER BY avg_price DESC 
+LIMIT 10`;
+      }
 
       const responseData = {
         generatedSQL: fallbackSQL,
