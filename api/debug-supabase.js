@@ -1,85 +1,159 @@
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
+// Supabase 연결 디버깅 API
 module.exports = async (req, res) => {
   // CORS 헤더 설정
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return res.status(405).json({
+      success: false,
+      error: 'GET 또는 POST 메서드만 지원됩니다.'
+    });
+  }
+
   try {
-    // 환경 변수 확인
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    console.log('🔍 Supabase 연결 디버깅 시작');
 
-    console.log('🔍 Supabase 환경 변수 확인 (v2):', {
-      hasUrl: !!supabaseUrl,
-      hasKey: !!supabaseKey,
-      urlStartsWith: supabaseUrl ? supabaseUrl.substring(0, 20) + '...' : 'undefined',
-      keyStartsWith: supabaseKey ? supabaseKey.substring(0, 20) + '...' : 'undefined'
-    });
+    const debugResult = {
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'unknown',
+      envVarsStatus: {},
+      connectionTest: {},
+      tableTests: {}
+    };
 
-    if (!supabaseUrl || !supabaseKey) {
+    // 1. 환경변수 확인
+    debugResult.envVarsStatus = {
+      SUPABASE_URL: process.env.SUPABASE_URL ? '✅ 설정됨' : '❌ 누락',
+      SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ? '✅ 설정됨' : '❌ 누락'
+    };
+
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
       return res.status(500).json({
         success: false,
-        error: 'Supabase 환경 변수가 설정되지 않았습니다.',
-        debug: {
-          hasUrl: !!supabaseUrl,
-          hasKey: !!supabaseKey
-        }
+        error: 'Supabase 환경변수가 설정되지 않았습니다.',
+        debug: debugResult
       });
     }
 
-    // Supabase 클라이언트 생성 테스트 (Vercel 최적화)
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        persistSession: false
-      },
-      global: {
-        headers: {
-          'User-Agent': 'Dune-Analyzer/1.0'
-        }
-      }
-    });
-
-    // 연결 테스트: analyzed_queries 테이블에서 데이터 조회
-    const { data, error, count } = await supabase
-      .from('analyzed_queries')
-      .select('id, dune_query_id, created_at', { count: 'exact' })
-      .limit(5);
-
-    if (error) {
-      console.error('❌ Supabase 연결 오류:', error);
+    // 2. Supabase 클라이언트 생성
+    let supabase;
+    try {
+      supabase = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        { auth: { persistSession: false } }
+      );
+      debugResult.connectionTest.clientCreation = '✅ 성공';
+    } catch (clientError) {
+      debugResult.connectionTest.clientCreation = `❌ 실패: ${clientError.message}`;
       return res.status(500).json({
         success: false,
-        error: 'Supabase 연결 실패',
-        details: error.message,
-        code: error.code
+        error: 'Supabase 클라이언트 생성 실패',
+        debug: debugResult
       });
     }
 
-    console.log('✅ Supabase 연결 성공, 데이터 조회 완료');
+    // 3. analyzed_queries 테이블 연결 테스트
+    try {
+      const { data, error } = await supabase
+        .from('analyzed_queries')
+        .select('count')
+        .limit(1);
 
-    return res.status(200).json({
-      success: true,
-      message: 'Supabase 연결이 정상적으로 작동합니다.',
-      data: {
-        totalRecords: count,
-        sampleData: data,
-        connectionTest: 'passed'
+      if (error) {
+        debugResult.tableTests.analyzed_queries = `❌ 실패: ${error.message}`;
+      } else {
+        debugResult.tableTests.analyzed_queries = '✅ 성공';
       }
+    } catch (testError) {
+      debugResult.tableTests.analyzed_queries = `❌ 예외: ${testError.message}`;
+    }
+
+    // 4. sql_errors 테이블 존재 확인
+    try {
+      const { data, error } = await supabase
+        .from('sql_errors')
+        .select('count')
+        .limit(1);
+
+      if (error) {
+        debugResult.tableTests.sql_errors = `❌ 테이블 없음: ${error.message}`;
+        debugResult.tableTests.sql_errors_solution = '🛠️ database-schema-sql-errors.sql을 실행하세요';
+      } else {
+        debugResult.tableTests.sql_errors = '✅ 테이블 존재';
+      }
+    } catch (testError) {
+      debugResult.tableTests.sql_errors = `❌ 예외: ${testError.message}`;
+    }
+
+    // 5. POST 요청인 경우 실제 데이터 삽입 테스트
+    if (req.method === 'POST') {
+      console.log('💾 실제 데이터 삽입 테스트 시작');
+      
+      const testData = {
+        original_sql: 'SELECT * FROM test_connection_table',
+        error_message: 'Connection test error message',
+        error_type: 'connection_test',
+        user_intent: 'API connection test from ' + new Date().toISOString()
+      };
+
+      try {
+        const { data: insertData, error: insertError } = await supabase
+          .from('sql_errors')
+          .insert([testData])
+          .select()
+          .single();
+
+        if (insertError) {
+          debugResult.insertTest = `❌ 삽입 실패: ${insertError.message}`;
+        } else {
+          debugResult.insertTest = `✅ 삽입 성공 (ID: ${insertData.id})`;
+          
+          // 삽입된 데이터 즉시 삭제
+          const { error: deleteError } = await supabase
+            .from('sql_errors')
+            .delete()
+            .eq('id', insertData.id);
+
+          debugResult.deleteTest = deleteError 
+            ? `⚠️ 삭제 실패: ${deleteError.message}` 
+            : '✅ 삭제 성공';
+        }
+      } catch (insertTestError) {
+        debugResult.insertTest = `❌ 삽입 예외: ${insertTestError.message}`;
+      }
+    }
+
+    // 6. 결과 요약
+    const hasErrors = Object.values(debugResult.tableTests).some(test => test.includes('❌'));
+    const overallStatus = hasErrors ? 'warning' : 'success';
+
+    console.log('📊 Supabase 디버깅 결과:', debugResult);
+
+    res.status(200).json({
+      success: !hasErrors,
+      status: overallStatus,
+      data: debugResult,
+      message: hasErrors 
+        ? 'Supabase 연결에 문제가 있습니다. sql_errors 테이블을 생성해야 할 수 있습니다.'
+        : 'Supabase 연결이 정상적으로 작동합니다.'
     });
 
   } catch (error) {
-    console.error('💥 예상치 못한 오류:', error);
-    return res.status(500).json({
+    console.error('❌ Supabase 디버깅 실패:', error);
+    res.status(500).json({
       success: false,
-      error: '디버깅 중 오류 발생',
-      details: error.message
+      error: `Supabase 디버깅 중 오류가 발생했습니다: ${error.message}`,
+      stack: error.stack
     });
   }
 };

@@ -1,363 +1,211 @@
 import React, { useState } from 'react';
-import { CheckCircle, XCircle, Loader2, Database, Brain, Server } from 'lucide-react';
+import { Database, AlertCircle, CheckCircle, Settings } from 'lucide-react';
+
+interface ApiTestResult {
+  success: boolean;
+  status?: string;
+  data?: any;
+  error?: string;
+  message?: string;
+}
 
 export const ApiTestComponent: React.FC = () => {
-  const [testResults, setTestResults] = useState<{
-    dune: { loading: boolean; success?: boolean; error?: string };
-    claude: { loading: boolean; success?: boolean; error?: string };
-    supabase: { loading: boolean; success?: boolean; error?: string; data?: any };
-  }>({
-    dune: { loading: false },
-    claude: { loading: false },
-    supabase: { loading: false },
-  });
+  const [isTestingEnv, setIsTestingEnv] = useState(false);
+  const [isTestingSupabase, setIsTestingSupabase] = useState(false);
+  const [envResult, setEnvResult] = useState<ApiTestResult | null>(null);
+  const [supabaseResult, setSupabaseResult] = useState<ApiTestResult | null>(null);
 
-  const [environmentInfo] = useState<{
-    duneApiKey: string;
-    claudeApiKey: string;
-    claudeApiUrl: string;
-    supabaseUrl: string;
-    supabaseKey: string;
-  }>({
-    duneApiKey: '백엔드에서 설정됨',
-    claudeApiKey: '백엔드에서 설정됨', 
-    claudeApiUrl: 'https://api.anthropic.com/v1/messages',
-    supabaseUrl: '백엔드에서 설정됨',
-    supabaseKey: '백엔드에서 설정됨 (anon key)',
-  });
-
-  const testDuneApi = async () => {
-    setTestResults(prev => ({
-      ...prev,
-      dune: { loading: true }
-    }));
+  const testEnvironmentVariables = async () => {
+    setIsTestingEnv(true);
+    setEnvResult(null);
 
     try {
-      // 직접 API 호출 (REST 방식)
-      const response = await fetch('/api/dune-graphql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          queryId: '5544306',
-          parameters: {}
-        })
-      });
-      
+      const response = await fetch('/api/debug-env');
       const result = await response.json();
-      
-      setTestResults(prev => ({
-        ...prev,
-        dune: { 
-          loading: false, 
-          success: result.success || response.ok,
-          error: result.success ? undefined : (result.error || `HTTP ${response.status}`)
-        }
-      }));
+      setEnvResult(result);
     } catch (error) {
-      setTestResults(prev => ({
-        ...prev,
-        dune: { 
-          loading: false, 
-          success: false,
-          error: error instanceof Error ? error.message : '알 수 없는 오류'
-        }
-      }));
+      setEnvResult({
+        success: false,
+        error: error instanceof Error ? error.message : '환경변수 테스트 실패'
+      });
+    } finally {
+      setIsTestingEnv(false);
     }
   };
 
-  const testClaudeApi = async () => {
-    setTestResults(prev => ({
-      ...prev,
-      claude: { loading: true }
-    }));
+  const testSupabaseConnection = async (withInsert = false) => {
+    setIsTestingSupabase(true);
+    setSupabaseResult(null);
 
     try {
-      // 직접 API 호출
-      const response = await fetch('/api/claude-messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-3-haiku-20240307',
-          max_tokens: 100,
-          messages: [{ role: 'user', content: 'API 테스트입니다. 간단히 응답해주세요.' }]
-        })
-      });
-      
+      const method = withInsert ? 'POST' : 'GET';
+      const response = await fetch('/api/debug-supabase', { method });
       const result = await response.json();
-      
-      setTestResults(prev => ({
-        ...prev,
-        claude: { 
-          loading: false, 
-          success: result.success || response.ok,
-          error: result.success ? undefined : (result.error || `HTTP ${response.status}`)
-        }
-      }));
+      setSupabaseResult(result);
     } catch (error) {
-      setTestResults(prev => ({
-        ...prev,
-        claude: { 
-          loading: false, 
-          success: false,
-          error: error instanceof Error ? error.message : '알 수 없는 오류'
-        }
-      }));
+      setSupabaseResult({
+        success: false,
+        error: error instanceof Error ? error.message : 'Supabase 테스트 실패'
+      });
+    } finally {
+      setIsTestingSupabase(false);
     }
   };
 
-  const testSupabaseApi = async () => {
-    setTestResults(prev => ({
-      ...prev,
-      supabase: { loading: true }
-    }));
+  const renderResult = (result: ApiTestResult | null, title: string) => {
+    if (!result) return null;
 
-    try {
-      // Supabase 연결 및 데이터 조회 테스트
-      const response = await fetch('/api/debug-supabase', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      const result = await response.json();
-      
-      setTestResults(prev => ({
-        ...prev,
-        supabase: { 
-          loading: false, 
-          success: result.success || response.ok,
-          error: result.success ? undefined : (result.error || result.details || `HTTP ${response.status}`),
-          data: result.success ? result.data : undefined
-        }
-      }));
-    } catch (error) {
-      setTestResults(prev => ({
-        ...prev,
-        supabase: { 
-          loading: false, 
-          success: false,
-          error: error instanceof Error ? error.message : '알 수 없는 오류'
-        }
-      }));
-    }
-  };
+    return (
+      <div className={`card border-2 ${
+        result.success ? 'border-status-success' : 'border-status-error'
+      }`}>
+        <div className="flex items-center space-x-2 mb-4">
+          {result.success ? (
+            <CheckCircle className="h-5 w-5 text-status-success" />
+          ) : (
+            <AlertCircle className="h-5 w-5 text-status-error" />
+          )}
+          <h3 className="font-medium text-text-primary">{title}</h3>
+        </div>
 
-  const testAllApis = async () => {
-    await Promise.all([testDuneApi(), testClaudeApi(), testSupabaseApi()]);
+        {result.message && (
+          <p className="text-text-secondary mb-4">{result.message}</p>
+        )}
+
+        {result.error && (
+          <div className="bg-status-error/10 border border-status-error/20 rounded-lg p-3 mb-4">
+            <p className="text-status-error font-medium">오류:</p>
+            <p className="text-status-error text-sm">{result.error}</p>
+          </div>
+        )}
+
+        {result.data && (
+          <div className="bg-secondary-dark rounded-lg p-4">
+            <pre className="text-text-primary text-sm overflow-x-auto">
+              {JSON.stringify(result.data, null, 2)}
+            </pre>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
-    <div className="card max-w-4xl mx-auto">
-      <h3 className="text-xl font-semibold text-text-primary mb-6">
-        🔧 API 연결 테스트
-      </h3>
-
-      {/* 환경변수 정보 */}
-      <div className="mb-6 p-4 bg-secondary-dark rounded-lg">
-        <h4 className="text-lg font-medium text-text-primary mb-3">
-          환경변수 상태
-        </h4>
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center space-x-2">
-            <Database className="h-4 w-4 text-primary-accent" />
-            <span className="text-text-secondary">Dune API Key:</span>
-            <span className={`font-mono ${environmentInfo.duneApiKey === '설정됨' ? 'text-status-success' : 'text-status-error'}`}>
-              {environmentInfo.duneApiKey}
-            </span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Brain className="h-4 w-4 text-secondary-accent" />
-            <span className="text-text-secondary">Claude API Key:</span>
-            <span className={`font-mono ${environmentInfo.claudeApiKey === '설정됨' ? 'text-status-success' : 'text-status-error'}`}>
-              {environmentInfo.claudeApiKey}
-            </span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="text-text-secondary">Claude API URL:</span>
-            <span className="font-mono text-text-primary">{environmentInfo.claudeApiUrl}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Server className="h-4 w-4 text-accent" />
-            <span className="text-text-secondary">Supabase URL:</span>
-            <span className={`font-mono ${environmentInfo.supabaseUrl === '설정됨' ? 'text-status-success' : 'text-status-error'}`}>
-              {environmentInfo.supabaseUrl}
-            </span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Server className="h-4 w-4 text-accent" />
-            <span className="text-text-secondary">Supabase Key:</span>
-            <span className={`font-mono ${environmentInfo.supabaseKey === '설정됨' ? 'text-status-success' : 'text-status-error'}`}>
-              {environmentInfo.supabaseKey}
-            </span>
-          </div>
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* 헤더 */}
+      <div className="text-center mb-8">
+        <div className="flex items-center justify-center space-x-3 mb-4">
+          <Settings className="h-8 w-8 text-primary-accent" />
+          <h2 className="text-3xl font-bold text-text-primary">
+            API 연결 테스트
+          </h2>
         </div>
+        <p className="text-text-secondary">
+          서버 연결 상태와 데이터베이스 연결을 확인합니다.
+        </p>
       </div>
 
       {/* 테스트 버튼들 */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        <button
-          onClick={testAllApis}
-          className="btn-primary flex items-center space-x-2"
-        >
-          <Loader2 className="h-4 w-4" />
-          <span>모든 API 테스트</span>
-        </button>
-        
-        <button
-          onClick={testDuneApi}
-          disabled={testResults.dune.loading}
-          className="btn-secondary flex items-center space-x-2"
-        >
-          {testResults.dune.loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Database className="h-4 w-4" />
-          )}
-          <span>Dune API 테스트</span>
-        </button>
-        
-        <button
-          onClick={testClaudeApi}
-          disabled={testResults.claude.loading}
-          className="btn-secondary flex items-center space-x-2"
-        >
-          {testResults.claude.loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Brain className="h-4 w-4" />
-          )}
-          <span>Claude API 테스트</span>
-        </button>
-        
-        <button
-          onClick={testSupabaseApi}
-          disabled={testResults.supabase.loading}
-          className="btn-secondary flex items-center space-x-2"
-        >
-          {testResults.supabase.loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Server className="h-4 w-4" />
-          )}
-          <span>Supabase 테스트</span>
-        </button>
-      </div>
-
-      {/* 테스트 결과 */}
-      <div className="space-y-4">
-        {/* Dune API 결과 */}
-        <div className="p-4 bg-secondary-dark rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <h5 className="font-medium text-text-primary flex items-center space-x-2">
-              <Database className="h-4 w-4" />
-              <span>Dune Analytics API</span>
-            </h5>
-            {testResults.dune.loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {!testResults.dune.loading && testResults.dune.success && (
-              <CheckCircle className="h-4 w-4 text-status-success" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="card">
+          <h3 className="font-medium text-text-primary mb-3">환경변수 확인</h3>
+          <p className="text-text-secondary text-sm mb-4">
+            서버의 환경변수 설정 상태를 확인합니다.
+          </p>
+          <button
+            onClick={testEnvironmentVariables}
+            disabled={isTestingEnv}
+            className="w-full py-3 bg-primary-accent text-white rounded-lg font-medium 
+                       hover:bg-primary-accent/90 disabled:opacity-50 disabled:cursor-not-allowed
+                       flex items-center justify-center space-x-2"
+          >
+            {isTestingEnv ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                <span>테스트 중...</span>
+              </>
+            ) : (
+              <>
+                <Settings className="h-4 w-4" />
+                <span>환경변수 테스트</span>
+              </>
             )}
-            {!testResults.dune.loading && testResults.dune.success === false && (
-              <XCircle className="h-4 w-4 text-status-error" />
-            )}
-          </div>
-          
-          {testResults.dune.success && (
-            <p className="text-status-success text-sm">
-              ✅ Dune API 연결 성공! 쿼리 데이터를 정상적으로 가져올 수 있습니다.
-            </p>
-          )}
-          
-          {testResults.dune.error && (
-            <div className="text-status-error text-sm">
-              <p>❌ Dune API 연결 실패:</p>
-              <p className="font-mono mt-1">{testResults.dune.error}</p>
-            </div>
-          )}
+          </button>
         </div>
 
-        {/* Claude API 결과 */}
-        <div className="p-4 bg-secondary-dark rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <h5 className="font-medium text-text-primary flex items-center space-x-2">
-              <Brain className="h-4 w-4" />
-              <span>Claude API</span>
-            </h5>
-            {testResults.claude.loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {!testResults.claude.loading && testResults.claude.success && (
-              <CheckCircle className="h-4 w-4 text-status-success" />
-            )}
-            {!testResults.claude.loading && testResults.claude.success === false && (
-              <XCircle className="h-4 w-4 text-status-error" />
-            )}
-          </div>
-          
-          {testResults.claude.success && (
-            <p className="text-status-success text-sm">
-              ✅ Claude API 연결 성공! AI 분석 기능을 사용할 수 있습니다.
-            </p>
-          )}
-          
-          {testResults.claude.error && (
-            <div className="text-status-error text-sm">
-              <p>❌ Claude API 연결 실패:</p>
-              <p className="font-mono mt-1">{testResults.claude.error}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Supabase API 결과 */}
-        <div className="p-4 bg-secondary-dark rounded-lg">
-          <div className="flex items-center space-x-2 mb-2">
-            <Server className="h-5 w-5 text-accent" />
-            <h4 className="text-lg font-medium text-text-primary">Supabase 데이터베이스</h4>
-            {testResults.supabase.loading && <Loader2 className="h-4 w-4 animate-spin text-primary-accent" />}
-            {testResults.supabase.success === true && <CheckCircle className="h-4 w-4 text-status-success" />}
-            {testResults.supabase.success === false && <XCircle className="h-4 w-4 text-status-error" />}
-          </div>
-          
-          {testResults.supabase.success && (
-            <div className="text-status-success text-sm space-y-2">
-              <p>✅ Supabase 연결 성공! 데이터베이스 저장 기능을 사용할 수 있습니다.</p>
-              {testResults.supabase.data && (
-                <div className="mt-2 p-3 bg-secondary rounded border-l-2 border-status-success">
-                  <p className="text-text-secondary text-xs mb-1">연결 정보:</p>
-                  <p className="text-xs">총 레코드: <span className="font-mono text-text-primary">{testResults.supabase.data.totalRecords}</span></p>
-                  <p className="text-xs">연결 테스트: <span className="font-mono text-status-success">{testResults.supabase.data.connectionTest}</span></p>
-                  {testResults.supabase.data.sampleData && testResults.supabase.data.sampleData.length > 0 && (
-                    <p className="text-xs">샘플 데이터: <span className="font-mono text-text-primary">{testResults.supabase.data.sampleData.length}개 레코드</span></p>
-                  )}
-                </div>
+        <div className="card">
+          <h3 className="font-medium text-text-primary mb-3">Supabase 연결</h3>
+          <p className="text-text-secondary text-sm mb-4">
+            Supabase 데이터베이스 연결과 테이블 상태를 확인합니다.
+          </p>
+          <div className="space-y-2">
+            <button
+              onClick={() => testSupabaseConnection(false)}
+              disabled={isTestingSupabase}
+              className="w-full py-2 bg-status-info text-white rounded-lg font-medium 
+                         hover:bg-status-info/90 disabled:opacity-50 disabled:cursor-not-allowed
+                         flex items-center justify-center space-x-2"
+            >
+              {isTestingSupabase ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                  <span>테스트 중...</span>
+                </>
+              ) : (
+                <>
+                  <Database className="h-4 w-4" />
+                  <span>기본 연결 테스트</span>
+                </>
               )}
-            </div>
-          )}
-          
-          {testResults.supabase.error && (
-            <div className="text-status-error text-sm">
-              <p>❌ Supabase 연결 실패:</p>
-              <p className="font-mono mt-1">{testResults.supabase.error}</p>
-              <div className="mt-2 p-3 bg-status-error/10 rounded border-l-2 border-status-error">
-                <p className="text-xs text-text-secondary">가능한 원인:</p>
-                <ul className="text-xs mt-1 space-y-1 list-disc list-inside">
-                  <li>SUPABASE_URL 환경 변수 누락 또는 잘못된 형식</li>
-                  <li>SUPABASE_ANON_KEY 환경 변수 누락 또는 만료</li>
-                  <li>Supabase 프로젝트 일시 정지 또는 제한</li>
-                  <li>네트워크 연결 문제 (Vercel ↔ Supabase)</li>
-                </ul>
-              </div>
-            </div>
-          )}
+            </button>
+            
+            <button
+              onClick={() => testSupabaseConnection(true)}
+              disabled={isTestingSupabase}
+              className="w-full py-2 bg-status-warning text-white rounded-lg font-medium 
+                         hover:bg-status-warning/90 disabled:opacity-50 disabled:cursor-not-allowed
+                         flex items-center justify-center space-x-2"
+            >
+              <Database className="h-4 w-4" />
+              <span>데이터 삽입 테스트</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* 사용 가이드 */}
-      <div className="mt-6 p-4 bg-primary-accent/10 rounded-lg">
-        <h4 className="text-lg font-medium text-text-primary mb-2">
-          💡 테스트 완료 후
-        </h4>
-        <ul className="text-sm text-text-secondary space-y-1">
-          <li>• 모든 API가 성공하면 실제 Dune URL로 분석을 테스트해보세요</li>
-          <li>• 실패한 API가 있다면 환경변수를 다시 확인해주세요</li>
-          <li>• CORS 오류가 발생하면 백엔드 프록시를 구축해야 할 수 있습니다</li>
-        </ul>
+      {/* 결과 표시 */}
+      <div className="space-y-6">
+        {renderResult(envResult, '환경변수 테스트 결과')}
+        {renderResult(supabaseResult, 'Supabase 연결 테스트 결과')}
+      </div>
+
+      {/* 도움말 */}
+      <div className="card bg-secondary-dark/50">
+        <h3 className="font-medium text-text-primary mb-3">문제 해결 가이드</h3>
+        <div className="space-y-3 text-sm text-text-secondary">
+          <div>
+            <strong className="text-text-primary">환경변수 누락:</strong>
+            <ul className="list-disc list-inside ml-4 mt-1">
+              <li>Vercel Dashboard → Settings → Environment Variables에서 설정</li>
+              <li>필요한 변수: SUPABASE_URL, SUPABASE_ANON_KEY, CLAUDE_API_KEY</li>
+            </ul>
+          </div>
+          <div>
+            <strong className="text-text-primary">sql_errors 테이블 없음:</strong>
+            <ul className="list-disc list-inside ml-4 mt-1">
+              <li>Supabase Dashboard → SQL Editor로 이동</li>
+              <li>database-schema-sql-errors.sql 파일의 내용을 복사하여 실행</li>
+            </ul>
+          </div>
+          <div>
+            <strong className="text-text-primary">Supabase 연결 실패:</strong>
+            <ul className="list-disc list-inside ml-4 mt-1">
+              <li>SUPABASE_URL과 SUPABASE_ANON_KEY가 올바른지 확인</li>
+              <li>Supabase 프로젝트가 활성화되어 있는지 확인</li>
+              <li>RLS (Row Level Security) 정책이 설정되어 있는지 확인</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   );
