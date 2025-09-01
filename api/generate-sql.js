@@ -329,17 +329,17 @@ ${tableInfo.examples.map(ex => `  ${ex}`).join('\n')}
 `;
   }
 
-  return `당신은 Dune Analytics SQL 쿼리 전문가입니다. 사용자의 자연어 요청을 바탕으로 실제 존재하는 테이블과 컬럼을 사용하여 SQL 쿼리를 생성해주세요.
+  return `당신은 Dune Analytics SQL 쿼리 전문가입니다. 사용자의 자연어 요청을 바탕으로 Supabase의 성공/실패 사례를 학습하여 최적의 SQL 쿼리를 생성해주세요.
 
 사용자 요청: "${userQuery}"
 
-관련 기존 쿼리들:
+📊 Supabase 성공 사례 (이런 방식을 따라하세요):
 ${relatedQueriesText}
 
-과거 오류 학습 사례들 (이런 실수를 피하세요):
+⚠️ Supabase 실패 사례 (이런 실수를 피하세요):
 ${errorLearningsText}
 
-일반적인 오류 패턴들:
+🔍 일반적인 오류 패턴들:
 ${commonPatternsText}
 
 컨텍스트:
@@ -349,30 +349,32 @@ ${commonPatternsText}
 ${schemaText}
 
 ⚠️ 중요 규칙:
-1. 반드시 위에 제공된 실제 테이블과 컬럼만 사용하세요
+1. 반드시 위에 제공된 실제 테이블과 컬럼만 사용하세요 (Supabase 데이터 기반)
 2. 존재하지 않는 테이블이나 컬럼을 가정하지 마세요
 3. PostgreSQL 문법을 사용하세요
 4. 날짜 형식은 'current_date - interval' 형태를 사용하세요
 5. JOIN 조건을 명확히 하세요
 6. 적절한 집계 함수를 사용하세요 (SUM, COUNT, AVG 등)
 7. 성능을 고려하여 LIMIT을 사용하세요
+8. Supabase 성공 사례의 패턴을 적극 활용하세요
+9. Supabase 실패 사례에서 학습한 오류를 반복하지 마세요
 
-다음 JSON 형태로만 응답해주세요 (다른 텍스트 없이 JSON만):
+🎯 응답 형식:
+SQL 쿼리만 반환하세요. JSON이나 다른 형식 없이 순수한 Dune SQL만 제공하세요.
 
-{
-  "generatedSQL": "SELECT blockchain, project, SUM(amount_usd) as volume FROM dex.trades WHERE block_time >= current_date - interval '7 days' GROUP BY blockchain, project ORDER BY volume DESC LIMIT 10",
-  "explanation": "지난 7일간 블록체인별 DEX 프로젝트 거래량을 집계하는 쿼리입니다.",
-  "assumptions": ["dex.trades 테이블 사용", "amount_usd 컬럼으로 거래량 계산"],
-  "clarificationQuestions": [],
-  "confidence": 0.9,
-  "suggestedImprovements": []
-}
+예시:
+SELECT 
+    blockchain,
+    project,
+    SUM(amount_usd) as volume_usd
+FROM dex.trades 
+WHERE block_time >= current_date - interval '7 days'
+  AND blockchain = 'ethereum'
+GROUP BY blockchain, project 
+ORDER BY volume_usd DESC 
+LIMIT 10;
 
-중요: 
-1. 반드시 유효한 JSON만 반환하세요
-2. generatedSQL에는 실제 존재하는 테이블과 컬럼만 사용하세요
-3. 마크다운 코드 블록(\`\`\`)은 사용하지 마세요
-4. 사용자 요청에 맞는 적절한 테이블을 선택하세요`;
+-- 위와 같은 형식으로 SQL만 반환하세요. 설명이나 JSON은 불필요합니다.`;
 }
 
 module.exports = async (req, res) => {
@@ -541,67 +543,107 @@ LIMIT 10`;
       });
     }
 
-    // Claude 응답 파싱
+    // Claude 응답 파싱 (순수 SQL 응답 처리)
     let result;
     try {
-      // JSON 부분만 추출 시도
-      let jsonString = claudeResponse.trim();
+      // 응답이 순수 SQL인 경우 직접 처리
+      let generatedSQL = claudeResponse.trim();
       
       // 마크다운 코드 블록 제거
-      const jsonMatch = jsonString.match(/```json\s*([\s\S]*?)\s*```/) || 
-                        jsonString.match(/```\s*([\s\S]*?)\s*```/) ||
-                        [null, jsonString];
+      const sqlCodeMatch = generatedSQL.match(/```sql\s*([\s\S]*?)\s*```/) || 
+                           generatedSQL.match(/```\s*([\s\S]*?)\s*```/);
       
-      if (jsonMatch[1]) {
-        jsonString = jsonMatch[1].trim();
+      if (sqlCodeMatch && sqlCodeMatch[1]) {
+        generatedSQL = sqlCodeMatch[1].trim();
       }
       
-      console.log('🔍 Claude 응답 원본:', claudeResponse.substring(0, 200) + '...');
-      console.log('🔍 파싱 시도할 JSON:', jsonString.substring(0, 200) + '...');
-      
-      result = JSON.parse(jsonString);
-      
-      // 필수 필드 검증 및 기본값 설정
-      if (!result.generatedSQL || result.generatedSQL.trim() === '') {
-        console.log('⚠️ Claude에서 빈 SQL을 반환함, fallback 사용');
+      // SQL 쿼리 검증
+      if (!generatedSQL || generatedSQL.trim() === '') {
         throw new Error('생성된 SQL이 비어있습니다.');
       }
       
+      // SQL 키워드가 포함되어 있는지 확인
+      const hasSQLKeywords = /\b(SELECT|WITH|CREATE|INSERT|UPDATE|DELETE)\b/i.test(generatedSQL);
+      if (!hasSQLKeywords) {
+        throw new Error('유효한 SQL 쿼리가 아닙니다.');
+      }
+      
+      console.log('✅ Claude에서 순수 SQL 응답 받음');
+      console.log('🔍 생성된 SQL:', generatedSQL.substring(0, 200) + '...');
+      
+      // 스키마 검증 (선택적)
+      const validation = validateTableAndColumns(generatedSQL, schemaInfo);
+      const suggestedImprovements = validation.isValid ? [] : validation.suggestions;
+      
+      result = {
+        generatedSQL: generatedSQL,
+        explanation: `사용자 요청 "${userQuery}"에 대한 SQL 쿼리가 생성되었습니다.`,
+        assumptions: ["Supabase 성공 사례 기반 생성", "실제 Dune Analytics 스키마 사용"],
+        clarificationQuestions: [],
+        confidence: validation.isValid ? 0.9 : 0.7,
+        suggestedImprovements: suggestedImprovements
+      };
+      
     } catch (parseError) {
-      console.error('❌ Claude 응답 파싱 실패:', parseError);
+      console.error('❌ Claude SQL 응답 파싱 실패:', parseError);
       console.log('📄 전체 Claude 응답:', claudeResponse);
       
       // Claude 응답에서 SQL 추출 시도 (더 강력한 정규식)
-      const sqlMatch = claudeResponse.match(/SELECT[\s\S]*?(?=\n\n|$)/i) ||
-                       claudeResponse.match(/WITH[\s\S]*?(?=\n\n|$)/i) ||
-                       claudeResponse.match(/CREATE[\s\S]*?(?=\n\n|$)/i) ||
-                       claudeResponse.match(/INSERT[\s\S]*?(?=\n\n|$)/i) ||
-                       claudeResponse.match(/UPDATE[\s\S]*?(?=\n\n|$)/i) ||
-                       claudeResponse.match(/DELETE[\s\S]*?(?=\n\n|$)/i);
+      const sqlMatch = claudeResponse.match(/SELECT[\s\S]*?(?=;|\n\n|$)/i) ||
+                       claudeResponse.match(/WITH[\s\S]*?(?=;|\n\n|$)/i) ||
+                       claudeResponse.match(/CREATE[\s\S]*?(?=;|\n\n|$)/i) ||
+                       claudeResponse.match(/INSERT[\s\S]*?(?=;|\n\n|$)/i) ||
+                       claudeResponse.match(/UPDATE[\s\S]*?(?=;|\n\n|$)/i) ||
+                       claudeResponse.match(/DELETE[\s\S]*?(?=;|\n\n|$)/i);
       
       // 기본 응답 생성 (fallback SQL)
-      let fallbackSQL = `-- AI가 생성한 쿼리 (${userQuery})
+      let fallbackSQL = `-- AI가 생성한 쿼리: ${userQuery}
 SELECT 
-  token_address,
-  symbol,
-  SUM(amount_usd) as volume
+  blockchain,
+  project,
+  SUM(amount_usd) as volume_usd
 FROM dex.trades 
+WHERE block_time >= current_date - interval '7 days'
+GROUP BY blockchain, project 
+ORDER BY volume_usd DESC 
+LIMIT 10;`;
+
+      // 사용자 요청에 따라 다른 테이블 선택
+      const lowerQuery = userQuery.toLowerCase();
+      if (lowerQuery.includes('nft') || lowerQuery.includes('collection')) {
+        fallbackSQL = `-- AI가 생성한 쿼리: ${userQuery}
+SELECT 
+  collection,
+  SUM(amount_usd) as volume_usd
+FROM nft.trades 
 WHERE blockchain = 'ethereum' 
   AND block_time >= current_date - interval '7 days'
-GROUP BY token_address, symbol 
-ORDER BY volume DESC 
-LIMIT 5`;
+GROUP BY collection 
+ORDER BY volume_usd DESC 
+LIMIT 10;`;
+      } else if (lowerQuery.includes('lending') || lowerQuery.includes('borrow')) {
+        fallbackSQL = `-- AI가 생성한 쿼리: ${userQuery}
+SELECT 
+  project,
+  SUM(amount_usd) as total_amount
+FROM lending.borrow 
+WHERE blockchain = 'ethereum' 
+  AND block_time >= current_date - interval '30 days'
+GROUP BY project 
+ORDER BY total_amount DESC 
+LIMIT 10;`;
+      }
 
       result = {
-        generatedSQL: sqlMatch ? sqlMatch[0].trim() : fallbackSQL,
-        explanation: "SQL이 생성되었습니다.",
-        assumptions: ["기본 Dune Analytics 스키마 사용"],
-        clarificationQuestions: undefined,
+        generatedSQL: sqlMatch ? sqlMatch[0].trim() + ';' : fallbackSQL,
+        explanation: "SQL이 생성되었지만 응답 파싱에 문제가 있었습니다. 기본 쿼리로 대체합니다.",
+        assumptions: ["기본 Dune Analytics 스키마 사용", "Fallback SQL 제공"],
+        clarificationQuestions: [],
         confidence: sqlMatch ? 0.7 : 0.6,
         suggestedImprovements: [
-          "Claude 응답 형식 개선 필요",
-          "실제 토큰 심볼과 주소 확인 권장",
-          "필요에 따라 필터 조건 수정"
+          "응답 형식 개선 필요",
+          "쿼리 검증 권장",
+          "필요에 따라 조건 수정"
         ]
       };
     }
