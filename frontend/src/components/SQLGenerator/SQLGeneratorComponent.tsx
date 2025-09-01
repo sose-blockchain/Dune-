@@ -184,6 +184,8 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
     setAnswers([]);
     setUserQuery('');
     setUserFeedback(null);
+    setOriginalSQL('');
+    setErrorMessage('');
   };
 
   const handleAnswerClarifications = () => {
@@ -263,7 +265,13 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
       {/* 모드 선택 */}
       <div className="flex space-x-4 mb-6">
         <button
-          onClick={() => setErrorMode(false)}
+          onClick={() => {
+            setErrorMode(false);
+            setCurrentStep('input');
+            setResult(null);
+            setError(null);
+            setUserFeedback(null);
+          }}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             !errorMode 
               ? 'bg-primary-accent text-white' 
@@ -274,7 +282,13 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
           새 쿼리 생성
         </button>
         <button
-          onClick={() => setErrorMode(true)}
+          onClick={() => {
+            setErrorMode(true);
+            setCurrentStep('input');
+            setResult(null);
+            setError(null);
+            setUserFeedback(null);
+          }}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             errorMode 
               ? 'bg-primary-accent text-white' 
@@ -416,12 +430,7 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
               </div>
             </div>
             <pre className="bg-secondary-dark p-4 rounded-lg overflow-x-auto text-text-primary font-mono text-sm">
-              {(() => {
-                console.log('🎨 [렌더링] result.generatedSQL:', result.generatedSQL);
-                console.log('🎨 [렌더링] result.generatedSQL 길이:', result.generatedSQL?.length);
-                console.log('🎨 [렌더링] typeof result.generatedSQL:', typeof result.generatedSQL);
-                return result.generatedSQL || '⚠️ SQL이 생성되지 않았습니다.';
-              })()}
+              {result.generatedSQL || '⚠️ SQL이 생성되지 않았습니다.'}
             </pre>
           </div>
 
