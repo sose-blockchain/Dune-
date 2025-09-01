@@ -27,6 +27,7 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
   const [errorMode, setErrorMode] = useState(false);
   const [originalSQL, setOriginalSQL] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [userFeedback, setUserFeedback] = useState<'helpful' | 'not_helpful' | null>(null);
 
   const handleGenerateSQL = async () => {
     if (!userQuery.trim()) return;
@@ -182,10 +183,42 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
     setClarificationQuestions([]);
     setAnswers([]);
     setUserQuery('');
+    setUserFeedback(null);
   };
 
   const handleAnswerClarifications = () => {
     setCurrentStep('clarification');
+  };
+
+  const handleUserFeedback = async (feedback: 'helpful' | 'not_helpful') => {
+    setUserFeedback(feedback);
+    
+    try {
+      // 사용자 피드백을 DB에 저장
+      const response = await fetch('/api/save-sql-error', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          originalSQL,
+          errorMessage,
+          fixedSQL: result?.generatedSQL,
+          fixExplanation: result?.explanation,
+          fixChanges: result?.suggestedImprovements,
+          userIntent: userQuery,
+          userFeedback: feedback
+        })
+      });
+
+      if (response.ok) {
+        console.log('✅ 사용자 피드백 저장 완료');
+      } else {
+        console.error('❌ 사용자 피드백 저장 실패');
+      }
+    } catch (error) {
+      console.error('❌ 사용자 피드백 저장 중 오류:', error);
+    }
   };
 
   return (
@@ -419,6 +452,42 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
                   <li key={index}>{improvement}</li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {/* 사용자 피드백 (오류 수정 모드에서만 표시) */}
+          {errorMode && (
+            <div className="card">
+              <h4 className="font-medium text-text-primary mb-2">이 수정이 도움이 되었나요?</h4>
+              <div className="flex space-x-4">
+                <button
+                  onClick={() => handleUserFeedback('helpful')}
+                  disabled={userFeedback !== null}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    userFeedback === 'helpful'
+                      ? 'bg-status-success text-white'
+                      : 'bg-secondary-dark text-text-secondary hover:bg-secondary-light'
+                  }`}
+                >
+                  👍 도움이 됨
+                </button>
+                <button
+                  onClick={() => handleUserFeedback('not_helpful')}
+                  disabled={userFeedback !== null}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    userFeedback === 'not_helpful'
+                      ? 'bg-status-error text-white'
+                      : 'bg-secondary-dark text-text-secondary hover:bg-secondary-light'
+                  }`}
+                >
+                  👎 도움이 안됨
+                </button>
+              </div>
+              {userFeedback && (
+                <p className="text-sm text-text-secondary mt-2">
+                  피드백을 보내주셔서 감사합니다! 더 나은 서비스를 위해 활용하겠습니다.
+                </p>
+              )}
             </div>
           )}
 

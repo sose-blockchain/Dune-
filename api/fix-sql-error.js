@@ -1,5 +1,61 @@
 const axios = require('axios');
+const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
+
+// Supabase 클라이언트 생성
+function createSupabaseClient() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('❌ Supabase 환경변수 누락');
+    return null;
+  }
+
+  try {
+    return createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false }
+    });
+  } catch (error) {
+    console.error('❌ Supabase 클라이언트 생성 실패:', error.message);
+    return null;
+  }
+}
+
+// SQL 오류 저장
+async function saveSQLError(supabase, originalSQL, errorMessage, fixedSQL, fixExplanation, fixChanges, userContext) {
+  try {
+    console.log('💾 SQL 오류 저장 시작');
+    
+    const { data, error } = await supabase
+      .from('sql_errors')
+      .insert([{
+        original_sql: originalSQL,
+        error_message: errorMessage,
+        fixed_sql: fixedSQL,
+        fix_explanation: fixExplanation,
+        fix_changes: fixChanges || [],
+        user_intent: userContext || null,
+        occurrence_count: 1,
+        last_occurrence: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ SQL 오류 저장 실패:', error);
+      return null;
+    }
+
+    console.log('✅ SQL 오류 저장 완료:', data.id);
+    return data;
+  } catch (error) {
+    console.error('❌ SQL 오류 저장 중 예외:', error);
+    return null;
+  }
+}
 
 // Claude API 호출
 async function callClaudeAPI(prompt) {
@@ -187,6 +243,32 @@ module.exports = async (req, res) => {
       explanationLength: result.explanation?.length || 0,
       changesCount: result.changes?.length || 0
     });
+
+    // SQL 오류 정보를 DB에 저장
+    const supabase = createSupabaseClient();
+    if (supabase) {
+      try {
+        const savedError = await saveSQLError(
+          supabase,
+          originalSQL,
+          errorMessage,
+          result.fixedSQL,
+          result.explanation,
+          result.changes,
+          userContext
+        );
+        
+        if (savedError) {
+          console.log('💾 오류 정보 DB 저장 완료:', savedError.id);
+        } else {
+          console.log('⚠️ 오류 정보 DB 저장 실패');
+        }
+      } catch (saveError) {
+        console.error('❌ 오류 정보 DB 저장 중 예외:', saveError);
+      }
+    } else {
+      console.log('⚠️ Supabase 연결 실패로 오류 정보 저장 건너뜀');
+    }
 
     res.status(200).json({
       success: true,
