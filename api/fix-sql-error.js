@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
 require('dotenv').config();
 
 // Supabase 클라이언트 생성
@@ -22,19 +23,66 @@ function createSupabaseClient() {
   }
 }
 
+// 오류 해시 생성
+function generateErrorHash(originalSQL, errorMessage) {
+  return crypto
+    .createHash('sha256')
+    .update(originalSQL + '|||' + errorMessage)
+    .digest('hex');
+}
+
+// 오류 타입 감지
+function detectErrorType(errorMessage) {
+  const errorMessage_lower = errorMessage.toLowerCase();
+  
+  if (errorMessage_lower.includes('syntax error') || errorMessage_lower.includes('syntax')) {
+    return 'syntax_error';
+  }
+  if (errorMessage_lower.includes('table') && errorMessage_lower.includes('not found')) {
+    return 'table_not_found';
+  }
+  if (errorMessage_lower.includes('column') && errorMessage_lower.includes('not found')) {
+    return 'column_not_found';
+  }
+  if (errorMessage_lower.includes('permission') || errorMessage_lower.includes('access')) {
+    return 'permission_error';
+  }
+  if (errorMessage_lower.includes('timeout')) {
+    return 'timeout_error';
+  }
+  if (errorMessage_lower.includes('limit') || errorMessage_lower.includes('exceeded')) {
+    return 'limit_exceeded';
+  }
+  
+  return 'unknown_error';
+}
+
 // SQL 오류 저장
 async function saveSQLError(supabase, originalSQL, errorMessage, fixedSQL, fixExplanation, fixChanges, userContext) {
   try {
     console.log('💾 SQL 오류 저장 시작');
     
+    // 오류 해시 및 분석 정보 생성
+    const errorHash = generateErrorHash(originalSQL, errorMessage);
+    const errorType = detectErrorType(errorMessage);
+    
+    console.log('📊 오류 분석:', {
+      errorHash: errorHash.substring(0, 8) + '...',
+      errorType,
+      originalSQLLength: originalSQL.length,
+      errorMessageLength: errorMessage.length
+    });
+    
     const { data, error } = await supabase
       .from('sql_errors')
       .insert([{
+        error_hash: errorHash,
         original_sql: originalSQL,
         error_message: errorMessage,
         fixed_sql: fixedSQL,
         fix_explanation: fixExplanation,
         fix_changes: fixChanges || [],
+        error_type: errorType,
         user_intent: userContext || null,
         occurrence_count: 1,
         last_occurrence: new Date().toISOString(),

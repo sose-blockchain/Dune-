@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
 require('dotenv').config();
 
 // Supabase 연결 디버깅 API
@@ -99,9 +100,17 @@ module.exports = async (req, res) => {
     if (req.method === 'POST') {
       console.log('💾 실제 데이터 삽입 테스트 시작');
       
+      const originalSQL = 'SELECT * FROM test_connection_table';
+      const errorMessage = 'Connection test error message';
+      const errorHash = crypto
+        .createHash('sha256')
+        .update(originalSQL + '|||' + errorMessage)
+        .digest('hex');
+      
       const testData = {
-        original_sql: 'SELECT * FROM test_connection_table',
-        error_message: 'Connection test error message',
+        error_hash: errorHash,
+        original_sql: originalSQL,
+        error_message: errorMessage,
         error_type: 'connection_test',
         user_intent: 'API connection test from ' + new Date().toISOString()
       };
