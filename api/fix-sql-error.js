@@ -1,33 +1,51 @@
+const axios = require('axios');
 require('dotenv').config();
 
 // Claude API 호출
 async function callClaudeAPI(prompt) {
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
+    console.log('🔑 Claude API 키 상태:', !!process.env.CLAUDE_API_KEY ? '존재함' : '없음');
+    
+    if (!process.env.CLAUDE_API_KEY) {
+      throw new Error('Claude API 키가 설정되지 않았습니다.');
+    }
+
+    const response = await axios.post('https://api.anthropic.com/v1/messages', {
+      model: 'claude-3-5-sonnet-20241022',
+      messages: [{
+        role: 'user',
+        content: prompt
+      }],
+      max_tokens: 4000,
+      temperature: 0.3,
+      stream: false
+    }, {
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': process.env.CLAUDE_API_KEY,
         'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 4000,
-        messages: [{
-          role: 'user',
-          content: prompt
-        }]
-      })
+      timeout: 30000
     });
 
-    if (!response.ok) {
-      throw new Error(`Claude API 오류: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.content[0].text;
+    console.log('✅ Claude API 성공 응답 받음');
+    return response.data.content[0].text;
   } catch (error) {
-    console.error('❌ Claude API 호출 실패:', error);
+    console.error('❌ Claude API 호출 실패:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data
+    });
+    
+    if (error.response) {
+      console.log(`⚠️ Claude API ${error.response.status} 오류`);
+    } else if (error.request) {
+      console.log('⚠️ Claude API 서버 연결 실패');
+    } else {
+      console.log('⚠️ Claude API 요청 설정 오류');
+    }
+    
     throw error;
   }
 }
@@ -108,22 +126,54 @@ module.exports = async (req, res) => {
     console.log('🧠 Claude AI로 SQL 오류 수정 중...');
     console.log('📝 원본 SQL 길이:', originalSQL.length);
     console.log('⚠️ 오류 메시지:', errorMessage.substring(0, 100) + '...');
+    console.log('📝 사용자 컨텍스트:', userContext || '없음');
 
     // SQL 오류 수정 프롬프트 생성
     const prompt = createErrorFixPrompt(originalSQL, errorMessage, userContext);
+    console.log('📝 생성된 프롬프트 길이:', prompt.length);
 
     // Claude API 호출
     const claudeResponse = await callClaudeAPI(prompt);
+    console.log('✅ Claude 응답 받음, 길이:', claudeResponse?.length || 0);
 
     // JSON 파싱
     let result;
     try {
-      result = JSON.parse(claudeResponse);
+      // JSON 부분만 추출 시도
+      let jsonString = claudeResponse.trim();
+      
+      // 마크다운 코드 블록 제거
+      const jsonMatch = jsonString.match(/```json\s*([\s\S]*?)\s*```/) || 
+                        jsonString.match(/```\s*([\s\S]*?)\s*```/) ||
+                        [null, jsonString];
+      
+      if (jsonMatch[1]) {
+        jsonString = jsonMatch[1].trim();
+      }
+      
+      console.log('🔍 파싱 시도할 JSON:', jsonString.substring(0, 200) + '...');
+      
+      result = JSON.parse(jsonString);
+      
+      // 필수 필드 검증
+      if (!result.fixedSQL || result.fixedSQL.trim() === '') {
+        throw new Error('수정된 SQL이 비어있습니다.');
+      }
+      
     } catch (parseError) {
       console.error('❌ Claude 응답 파싱 실패:', parseError);
-      // 기본 응답 생성
+      console.log('📄 전체 Claude 응답:', claudeResponse);
+      
+      // Claude 응답에서 SQL 추출 시도
+      const sqlMatch = claudeResponse.match(/SELECT[\s\S]*?(?=\n\n|$)/i) ||
+                       claudeResponse.match(/WITH[\s\S]*?(?=\n\n|$)/i) ||
+                       claudeResponse.match(/CREATE[\s\S]*?(?=\n\n|$)/i) ||
+                       claudeResponse.match(/INSERT[\s\S]*?(?=\n\n|$)/i) ||
+                       claudeResponse.match(/UPDATE[\s\S]*?(?=\n\n|$)/i) ||
+                       claudeResponse.match(/DELETE[\s\S]*?(?=\n\n|$)/i);
+      
       result = {
-        fixedSQL: originalSQL,
+        fixedSQL: sqlMatch ? sqlMatch[0].trim() : originalSQL,
         explanation: "SQL 수정을 시도했지만 파싱에 실패했습니다. 원본 SQL을 확인해주세요.",
         changes: ["응답 파싱 실패로 인한 기본 응답"],
         commonMistakes: [],
@@ -132,6 +182,11 @@ module.exports = async (req, res) => {
     }
 
     console.log('✅ SQL 오류 수정 완료');
+    console.log('📊 최종 결과:', {
+      fixedSQLLength: result.fixedSQL?.length || 0,
+      explanationLength: result.explanation?.length || 0,
+      changesCount: result.changes?.length || 0
+    });
 
     res.status(200).json({
       success: true,

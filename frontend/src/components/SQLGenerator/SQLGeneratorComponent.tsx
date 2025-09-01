@@ -92,11 +92,16 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
 
     setIsGenerating(true);
     setError(null);
+    setResult(null);
 
     try {
+      console.log('🔧 SQL 오류 수정 시작:', { originalSQL: originalSQL.substring(0, 100), errorMessage: errorMessage.substring(0, 100) });
+      
       const response = await sqlGeneratorService.fixSQLError(originalSQL, errorMessage, userQuery);
 
       if (response.success && response.data) {
+        console.log('✅ SQL 오류 수정 성공:', response.data);
+        
         setResult({
           generatedSQL: response.data.fixedSQL,
           explanation: response.data.explanation,
@@ -106,11 +111,14 @@ export const SQLGeneratorComponent: React.FC<SQLGeneratorProps> = ({ onSQLGenera
           suggestedImprovements: response.data.changes
         });
         
+        setCurrentStep('result'); // 결과 단계로 이동
         onSQLGenerated?.(response.data.fixedSQL);
       } else {
+        console.error('❌ SQL 오류 수정 실패:', response.error);
         setError(response.error || 'SQL 오류 수정에 실패했습니다.');
       }
     } catch (err) {
+      console.error('❌ SQL 오류 수정 예외:', err);
       setError(err instanceof Error ? err.message : 'SQL 오류 수정 중 오류가 발생했습니다.');
     } finally {
       setIsGenerating(false);
